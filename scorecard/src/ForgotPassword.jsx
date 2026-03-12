@@ -22,7 +22,7 @@ function ForgotPassword() {
       // For development, show the debug token
       if (response.debug_token) {
         console.log('Reset Token:', response.debug_token)
-        console.log('Reset Link: http://localhost:5173/#/reset-password?token=' + response.debug_token)
+        console.log('Reset Link: ' + window.location.origin + window.location.pathname + '#/reset-password?token=' + response.debug_token)
       }
     } catch (err) {
       setError(err.message)
