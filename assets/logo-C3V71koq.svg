@@ -1,0 +1,140 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Radial gradient for 3D ball effect -->
+    <radialGradient id="ballGradient" cx="35%" cy="35%">
+      <stop offset="0%" style="stop-color:#ff9f4a;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#ff6b00;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#d95700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a84400;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Highlight gradient -->
+    <radialGradient id="highlightGradient" cx="30%" cy="30%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.8" />
+      <stop offset="50%" style="stop-color:#ffffff;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
+    </radialGradient>
+    
+    <!-- Shadow gradient -->
+    <radialGradient id="shadowGradient" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:0" />
+      <stop offset="70%" style="stop-color:#000000;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0.6" />
+    </radialGradient>
+
+    <!-- Outer glow gradient -->
+    <radialGradient id="outerGlow" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#ff6b00;stop-opacity:0" />
+      <stop offset="70%" style="stop-color:#ec008c;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#ec008c;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- Filter for depth -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="2" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.5"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Outer glow effect -->
+  <circle cx="60" cy="60" r="65" fill="url(#outerGlow)" opacity="0.6"/>
+  
+  <!-- Main cricket ball -->
+  <g filter="url(#shadow)">
+    <!-- Base sphere -->
+    <circle cx="60" cy="60" r="45" fill="url(#ballGradient)"/>
+    
+    <!-- Shadow overlay for depth -->
+    <circle cx="60" cy="60" r="45" fill="url(#shadowGradient)" opacity="0.4"/>
+    
+    <!-- Highlight for 3D effect -->
+    <circle cx="60" cy="60" r="45" fill="url(#highlightGradient)"/>
+    
+    <!-- Additional highlight spot -->
+    <ellipse cx="48" cy="48" rx="18" ry="15" fill="#ffffff" opacity="0.35"/>
+    <ellipse cx="45" cy="45" rx="12" ry="10" fill="#ffffff" opacity="0.25"/>
+    
+    <!-- Cricket ball seam - curved stitching -->
+    <!-- Upper seam curve -->
+    <path d="M 35 45 Q 60 30 85 45" 
+          stroke="#ffffff" 
+          stroke-width="2.5" 
+          fill="none" 
+          opacity="0.95"
+          stroke-linecap="round"/>
+    <path d="M 35 45 Q 60 30 85 45" 
+          stroke="#ffd4a3" 
+          stroke-width="1.5" 
+          fill="none" 
+          opacity="0.6"
+          stroke-linecap="round"/>
+    
+    <!-- Lower seam curve -->
+    <path d="M 35 75 Q 60 90 85 75" 
+          stroke="#ffffff" 
+          stroke-width="2.5" 
+          fill="none" 
+          opacity="0.95"
+          stroke-linecap="round"/>
+    <path d="M 35 75 Q 60 90 85 75" 
+          stroke="#ffd4a3" 
+          stroke-width="1.5" 
+          fill="none" 
+          opacity="0.6"
+          stroke-linecap="round"/>
+    
+    <!-- Vertical seam sections with stitching detail -->
+    <path d="M 38 48 Q 42 60 38 72" 
+          stroke="#ffffff" 
+          stroke-width="2.2" 
+          fill="none" 
+          opacity="0.9"
+          stroke-linecap="round"/>
+    <path d="M 82 48 Q 78 60 82 72" 
+          stroke="#ffffff" 
+          stroke-width="2.2" 
+          fill="none" 
+          opacity="0.9"
+          stroke-linecap="round"/>
+    
+    <!-- Stitching dots for detail -->
+    <circle cx="50" cy="38" r="1.2" fill="#ffffff" opacity="0.8"/>
+    <circle cx="60" cy="35" r="1.2" fill="#ffffff" opacity="0.8"/>
+    <circle cx="70" cy="38" r="1.2" fill="#ffffff" opacity="0.8"/>
+    
+    <circle cx="50" cy="82" r="1.2" fill="#ffffff" opacity="0.8"/>
+    <circle cx="60" cy="85" r="1.2" fill="#ffffff" opacity="0.8"/>
+    <circle cx="70" cy="82" r="1.2" fill="#ffffff" opacity="0.8"/>
+    
+    <!-- Cross stitches for authentic look -->
+    <line x1="49" y1="37" x2="51" y2="39" stroke="#ffffff" stroke-width="0.8" opacity="0.7"/>
+    <line x1="51" y1="37" x2="49" y2="39" stroke="#ffffff" stroke-width="0.8" opacity="0.7"/>
+    
+    <line x1="59" y1="34" x2="61" y2="36" stroke="#ffffff" stroke-width="0.8" opacity="0.7"/>
+    <line x1="61" y1="34" x2="59" y2="36" stroke="#ffffff" stroke-width="0.8" opacity="0.7"/>
+    
+    <line x1="69" y1="37" x2="71" y2="39" stroke="#ffffff" stroke-width="0.8" opacity="0.7"/>
+    <line x1="71" y1="37" x2="69" y2="39" stroke="#ffffff" stroke-width="0.8" opacity="0.7"/>
+  </g>
+  
+  <!-- Accent glow particles -->
+  <circle cx="20" cy="30" r="2" fill="#ec008c" opacity="0.6">
+    <animate attributeName="opacity" values="0.6;0.3;0.6" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="100" cy="35" r="2.5" fill="#ff6b00" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.2;0.5" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="25" cy="90" r="2" fill="#ec008c" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.3;0.5" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="95" cy="85" r="2" fill="#ff6b00" opacity="0.6">
+    <animate attributeName="opacity" values="0.6;0.3;0.6" dur="2.2s" repeatCount="indefinite"/>
+  </circle>
+</svg>
