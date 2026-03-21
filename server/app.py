@@ -1053,9 +1053,7 @@ async def get_leaderboard():
                 FROM users u
                 LEFT JOIN match_rankings r ON u.id = r.user_id
                 GROUP BY u.id, u.display_name, u.profile_picture
-                HAVING total_points > 0 OR matches_played > 0
-                ORDER BY total_points DESC, best_rank ASC
-                LIMIT 50
+                ORDER BY total_points DESC, best_rank ASC, u.display_name ASC
             """)
             
             results = cursor.fetchall()
