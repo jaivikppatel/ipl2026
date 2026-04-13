@@ -1524,8 +1524,11 @@ async def submit_points(
         cursor.execute("DELETE FROM match_rankings WHERE game_id = %s", (data.game_id,))
         
         # Insert new rankings with calculated ranks and points
+        rank = 0
         for idx, entry in enumerate(sorted_points):
-            rank = idx + 1
+            # Assign same rank for tied scores, skip ranks for ties (competition ranking)
+            if idx == 0 or entry.fantasy_points != sorted_points[idx - 1].fantasy_points:
+                rank = idx + 1
             
             # Calculate points earned based on rank
             if is_multiplier:
