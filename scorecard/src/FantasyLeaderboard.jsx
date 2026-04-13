@@ -12,6 +12,8 @@ function FantasyLeaderboard() {
   const [myBreakdown, setMyBreakdown] = useState([])
   const [activeTab, setActiveTab] = useState('leaderboard')
   const [loading, setLoading] = useState(true)
+  const [viewingTeam, setViewingTeam] = useState(null)   // { display_name, players }
+  const [teamModalLoading, setTeamModalLoading] = useState(false)
   const currentUserId = AuthService.getUser()?.id
 
   useEffect(() => {
@@ -43,6 +45,26 @@ function FantasyLeaderboard() {
 
   const myEntry = leaderboard.find(e => e.is_current_user)
   const totalParticipants = leaderboard.length
+  const canViewTeams = match?.status === 'live' || match?.status === 'completed'
+
+  const handleRowClick = async (entry) => {
+    if (!canViewTeams) return
+    if (entry.is_current_user) {
+      setActiveTab('my-points')
+      return
+    }
+    setTeamModalLoading(true)
+    setViewingTeam({ display_name: entry.display_name, players: null })
+    try {
+      const data = await FantasyService.getUserTeam(matchId, entry.user_id)
+      setViewingTeam({ display_name: data.display_name, players: data.players })
+    } catch (err) {
+      setViewingTeam(null)
+      alert(err.message)
+    } finally {
+      setTeamModalLoading(false)
+    }
+  }
 
   return (
     <div className="fl-container">
@@ -126,7 +148,11 @@ function FantasyLeaderboard() {
                   </thead>
                   <tbody>
                     {leaderboard.map((entry, idx) => (
-                      <tr key={entry.user_id} className={entry.is_current_user ? 'my-row' : ''}>
+                      <tr
+                        key={entry.user_id}
+                        className={`${entry.is_current_user ? 'my-row' : ''} ${canViewTeams ? 'clickable-row' : ''}`}
+                        onClick={() => handleRowClick(entry)}
+                      >
                         <td className="rank-cell">
                           {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : entry.rank || idx + 1}
                         </td>
@@ -193,6 +219,52 @@ function FantasyLeaderboard() {
             </div>
           )}
         </>
+      )}
+
+      {/* Team View Modal */}
+      {viewingTeam && (
+        <div className="team-modal-overlay" onClick={() => setViewingTeam(null)}>
+          <div className="team-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="team-modal-header">
+              <h2>{viewingTeam.display_name}&apos;s Team</h2>
+              <button className="team-modal-close" onClick={() => setViewingTeam(null)}>✕</button>
+            </div>
+            {teamModalLoading || !viewingTeam.players ? (
+              <div className="fl-loading">
+                <div className="spinner" />
+                <p>Loading team...</p>
+              </div>
+            ) : (
+              <div className="team-modal-body">
+                {[...viewingTeam.players]
+                  .sort((a, b) => b.total_points - a.total_points)
+                  .map(p => (
+                    <div key={p.player_id} className={`mp-card ${p.is_captain ? 'mp-captain' : p.is_vice_captain ? 'mp-vc' : ''}`}>
+                      <div className="mp-left">
+                        {p.is_captain && <span className="mp-badge mp-badge-c">C</span>}
+                        {p.is_vice_captain && <span className="mp-badge mp-badge-vc">VC</span>}
+                        <div className="mp-info">
+                          <div className="mp-name">{p.name}</div>
+                          <div className="mp-meta">
+                            {p.team_short} · <span className={`player-role-chip role-${p.role}`}>{p.role}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mp-right">
+                        <div className="mp-total-pts">{p.total_points.toFixed(1)}</div>
+                        {p.base_points > 0 && (
+                          <div className="mp-base-pts">
+                            {p.base_points.toFixed(1)} × {p.is_captain ? '2' : p.is_vice_captain ? '1.5' : '1'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

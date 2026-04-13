@@ -386,3 +386,70 @@
   color: #888;
   margin-top: 2px;
 }
+
+/* CLICKABLE ROWS */
+.fl-table tbody tr.clickable-row {
+  cursor: pointer;
+}
+
+.fl-table tbody tr.clickable-row:hover {
+  background: #1e1e1e;
+}
+
+/* TEAM VIEW MODAL */
+.team-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.team-modal {
+  background: #111;
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.team-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #222;
+  flex-shrink: 0;
+}
+
+.team-modal-header h2 {
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+  color: #fff;
+}
+
+.team-modal-close {
+  background: #222;
+  border: none;
+  color: #aaa;
+  font-size: 1rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-modal-body {
+  overflow-y: auto;
+  padding: 12px;
+  flex: 1;
+}

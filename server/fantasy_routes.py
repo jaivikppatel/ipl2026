@@ -511,6 +511,94 @@ async def get_match_leaderboard(
         conn.close()
 
 
+@fantasy_router.get('/matches/{match_id}/teams/{target_user_id}')
+async def get_user_team(
+    match_id: int,
+    target_user_id: int,
+    authorization: Optional[str] = Header(None)
+):
+    """Get another user's fantasy team for a match. Only revealed once match is live or completed."""
+    from app import get_current_user
+    await get_current_user(authorization)  # must be authenticated
+
+    conn = _get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Only reveal teams after match has started
+        cursor.execute(
+            'SELECT status FROM fantasy_match_schedule WHERE id = %s',
+            (match_id,)
+        )
+        match = cursor.fetchone()
+        if not match:
+            raise HTTPException(status_code=404, detail='Match not found')
+        if match['status'] == 'upcoming':
+            raise HTTPException(status_code=403, detail='Teams are hidden until the match starts')
+
+        cursor.execute(
+            'SELECT id FROM fantasy_user_selections WHERE user_id = %s AND match_id = %s',
+            (target_user_id, match_id)
+        )
+        selection = cursor.fetchone()
+        if not selection:
+            raise HTTPException(status_code=404, detail='Team not found')
+
+        cursor.execute(
+            '''SELECT
+                 futp.player_id, futp.is_captain, futp.is_vice_captain,
+                 p.name, p.role, p.credits,
+                 t.short_name AS team_short, t.primary_color
+               FROM fantasy_user_team_players futp
+               JOIN fantasy_ipl_players p ON futp.player_id = p.id
+               JOIN fantasy_ipl_teams t ON p.team_id = t.id
+               WHERE futp.selection_id = %s''',
+            (selection['id'],)
+        )
+        players = cursor.fetchall()
+
+        player_ids = [p['player_id'] for p in players]
+        points_map = {}
+        if player_ids:
+            placeholders = ','.join(['%s'] * len(player_ids))
+            cursor.execute(
+                f'SELECT player_id, fantasy_points FROM fantasy_player_match_stats WHERE match_id = %s AND player_id IN ({placeholders})',
+                [match_id] + player_ids
+            )
+            for row in cursor.fetchall():
+                points_map[row['player_id']] = float(row['fantasy_points'])
+
+        cursor.execute(
+            'SELECT display_name FROM users WHERE id = %s',
+            (target_user_id,)
+        )
+        u = cursor.fetchone()
+
+        return {
+            'display_name': u['display_name'] if u else '',
+            'players': [
+                {
+                    'player_id': p['player_id'],
+                    'name': p['name'],
+                    'role': p['role'],
+                    'credits': float(p['credits']),
+                    'team_short': p['team_short'],
+                    'team_color': p['primary_color'],
+                    'is_captain': bool(p['is_captain']),
+                    'is_vice_captain': bool(p['is_vice_captain']),
+                    'base_points': points_map.get(p['player_id'], 0),
+                    'total_points': round(
+                        points_map.get(p['player_id'], 0) * (2.0 if p['is_captain'] else 1.5 if p['is_vice_captain'] else 1.0),
+                        2
+                    ),
+                }
+                for p in players
+            ],
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @fantasy_router.get('/matches/{match_id}/points')
 async def get_match_points_breakdown(
     match_id: int,
