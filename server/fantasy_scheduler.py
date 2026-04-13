@@ -514,21 +514,26 @@ def fetch_live_scorecard(cricapi_match_id: str, db_match_id: int):
             bowling = innings.get('bowling', [])
 
             for b in batting:
-                pid = b.get('id') or b.get('batsmanId')
+                # API structure: {'batsman': {'id': '...', 'name': '...'}, 'r': ..., ...}
+                pid = (b.get('batsman') or {}).get('id') or b.get('id') or b.get('batsmanId')
                 if not pid:
                     continue
                 parsed = parse_scorecard_batting(b)
                 if pid not in player_stats:
                     player_stats[pid] = _empty_stats()
+                # Store player name for auto-upsert if not in DB
+                player_stats[pid]['_name'] = (b.get('batsman') or {}).get('name', '')
                 _merge_batting(player_stats[pid], parsed)
 
             for bw in bowling:
-                pid = bw.get('id') or bw.get('bowlerId')
+                # API structure: {'bowler': {'id': '...', 'name': '...'}, 'o': ..., ...}
+                pid = (bw.get('bowler') or {}).get('id') or bw.get('id') or bw.get('bowlerId')
                 if not pid:
                     continue
                 parsed = parse_scorecard_bowling(bw)
                 if pid not in player_stats:
                     player_stats[pid] = _empty_stats()
+                player_stats[pid]['_name'] = (bw.get('bowler') or {}).get('name', '')
                 _merge_bowling(player_stats[pid], parsed)
 
         # Upsert stats for each player into fantasy_player_match_stats
@@ -538,7 +543,22 @@ def fetch_live_scorecard(cricapi_match_id: str, db_match_id: int):
             )
             pr = cursor.fetchone()
             if not pr:
-                continue
+                # Auto-create player from scorecard if not in DB yet (e.g. team squad not pre-fetched)
+                player_name = stats.get('_name', '')
+                if not player_name:
+                    continue
+                cursor.execute(
+                    '''INSERT IGNORE INTO fantasy_ipl_players (cricapi_player_id, name, role)
+                       VALUES (%s, %s, 'BAT')''',
+                    (cricapi_pid, player_name)
+                )
+                conn.commit()
+                cursor.execute(
+                    'SELECT id FROM fantasy_ipl_players WHERE cricapi_player_id = %s', (cricapi_pid,)
+                )
+                pr = cursor.fetchone()
+                if not pr:
+                    continue
             player_db_id = pr['id']
 
             # Calculate fantasy points
