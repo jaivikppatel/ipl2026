@@ -23,6 +23,10 @@ from email.mime.multipart import MIMEMultipart
 # Load environment variables
 load_dotenv()
 
+# Fantasy module imports (after load_dotenv so env vars are available)
+from fantasy_routes import fantasy_router
+from fantasy_scheduler import start_scheduler, stop_scheduler
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Cricket Scorecard API",
@@ -1572,6 +1576,25 @@ async def health_check():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={'status': 'unhealthy', 'error': str(e)}
         )
+
+# Register fantasy routes
+app.include_router(fantasy_router)
+
+
+@app.on_event('startup')
+async def startup_event():
+    """Start the fantasy data scheduler on app startup."""
+    try:
+        start_scheduler()
+    except Exception as e:
+        print(f'Warning: Fantasy scheduler failed to start: {e}')
+
+
+@app.on_event('shutdown')
+async def shutdown_event():
+    """Cleanly stop the scheduler on shutdown."""
+    stop_scheduler()
+
 
 if __name__ == '__main__':
     import uvicorn

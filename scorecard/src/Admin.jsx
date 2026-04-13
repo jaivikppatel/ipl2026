@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import AdminService from './services/AdminService'
+import FantasyService from './services/FantasyService'
 import BottomNav from './BottomNav'
 import './Admin.css'
 
@@ -16,6 +17,10 @@ function Admin() {
   const [formData, setFormData] = useState({})
   const [fantasyPoints, setFantasyPoints] = useState({})
   const [users, setUsers] = useState([])
+  const [fantasyPlayers, setFantasyPlayers] = useState([])
+  const [fantasyApiUsage, setFantasyApiUsage] = useState({})
+  const [fantasyMatches, setFantasyMatches] = useState([])
+  const [editingPlayer, setEditingPlayer] = useState({})
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -37,6 +42,16 @@ function Admin() {
       if (activeTab === 'profiles' || activeTab === 'schedule') {
         const data = await AdminService.getScoringProfiles()
         setProfiles(data.profiles || [])
+      }
+      if (activeTab === 'fantasy') {
+        const [usageData, matchesData, playersData] = await Promise.all([
+          FantasyService.adminGetApiUsage(),
+          FantasyService.adminGetMatches(),
+          FantasyService.adminGetPlayers()
+        ])
+        setFantasyApiUsage(usageData || {})
+        setFantasyMatches(matchesData.matches || [])
+        setFantasyPlayers(playersData.players || [])
       }
     } catch (err) {
       console.error(err)
@@ -189,7 +204,7 @@ function Admin() {
       </div>
 
       <div className="admin-tabs">
-        {['schedule', 'rankings', 'profiles'].map(tab => (
+        {['schedule', 'rankings', 'profiles', 'fantasy'].map(tab => (
           <button 
             key={tab}
             className={activeTab === tab ? 'tab active' : 'tab'}
@@ -198,6 +213,7 @@ function Admin() {
             {tab === 'schedule' && '📅 Schedule'}
             {tab === 'rankings' && '🎯 Enter Points'}
             {tab === 'profiles' && '🏆 Scoring Profiles'}
+            {tab === 'fantasy' && '🏏 Fantasy'}
           </button>
         ))}
       </div>
@@ -257,6 +273,143 @@ function Admin() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* FANTASY TAB */}
+        {activeTab === 'fantasy' && !loading && (
+          <div className="section">
+            {/* API Usage */}
+            <div className="section-header">
+              <h2>API Usage Today</h2>
+              <button
+                className="primary-btn"
+                onClick={async () => {
+                  try { await FantasyService.adminTriggerSync(); alert('Sync triggered!'); loadData() }
+                  catch (err) { alert(err.message) }
+                }}
+              >🔄 Sync Schedule</button>
+            </div>
+            <div className="modern-card" style={{marginBottom: 16}}>
+              <div className="card-body">
+                <div style={{display:'flex', justifyContent:'space-between', marginBottom:8}}>
+                  <span style={{color:'#aaa', fontSize:'0.85rem'}}>Calls today</span>
+                  <span style={{fontWeight:700}}>{fantasyApiUsage.calls_made || 0} / 2000</span>
+                </div>
+                <div style={{background:'#222', borderRadius:8, height:10}}>
+                  <div style={{
+                    background: 'linear-gradient(90deg,#ec008c,#ff6b00)',
+                    width: `${Math.min(100, ((fantasyApiUsage.calls_made || 0)/2000)*100)}%`,
+                    height:'100%', borderRadius:8, transition:'width 0.3s'
+                  }} />
+                </div>
+                {fantasyApiUsage.last_call_type && (
+                  <p style={{color:'#666', fontSize:'0.78rem', marginTop:6}}>Last: {fantasyApiUsage.last_call_type}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Fantasy Matches */}
+            <div className="section-header" style={{marginTop:20}}>
+              <h2>Fantasy Matches</h2>
+            </div>
+            <div className="games-grid">
+              {fantasyMatches.map(m => (
+                <div key={m.id} className="modern-card">
+                  <div className="card-header">
+                    <h3 style={{fontSize:'0.85rem'}}>{m.match_name}</h3>
+                    <span className={`status-badge ${m.status === 'completed' ? 'completed' : m.status === 'live' ? 'live' : 'pending'}`}>
+                      {m.status}
+                    </span>
+                  </div>
+                  <div className="card-body">
+                    <p style={{fontSize:'0.78rem', color:'#888'}}>Squad: {m.squad_fetched ? '✓ Fetched' : '✗ Pending'}</p>
+                  </div>
+                  <div className="card-actions">
+                    <button
+                      className="edit-btn-small"
+                      onClick={async () => {
+                        try { await FantasyService.adminTriggerSquad(m.id); alert('Squad fetch triggered!'); loadData() }
+                        catch(err) { alert(err.message) }
+                      }}
+                    >Squad</button>
+                    <button
+                      className="edit-btn-small"
+                      onClick={async () => {
+                        try { await FantasyService.adminTriggerScorecard(m.id); alert('Scorecard fetch triggered!'); loadData() }
+                        catch(err) { alert(err.message) }
+                      }}
+                    >Score</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Fantasy Players */}
+            <div className="section-header" style={{marginTop:20}}>
+              <h2>Player Credits &amp; Roles</h2>
+            </div>
+            {fantasyPlayers.length === 0 ? (
+              <p style={{color:'#555', textAlign:'center', padding:'30px'}}>No players yet. Scores will be auto-populated when squad is fetched.</p>
+            ) : (
+              <div style={{overflowX:'auto'}}>
+                <table style={{width:'100%', borderCollapse:'collapse', fontSize:'0.82rem'}}>
+                  <thead>
+                    <tr style={{background:'#141414', color:'#666', textTransform:'uppercase', fontSize:'0.7rem'}}>
+                      <th style={{padding:'8px 12px', textAlign:'left'}}>Player</th>
+                      <th style={{padding:'8px 12px'}}>Team</th>
+                      <th style={{padding:'8px 12px'}}>Role</th>
+                      <th style={{padding:'8px 12px'}}>Credits</th>
+                      <th style={{padding:'8px 12px'}}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fantasyPlayers.map(p => (
+                      <tr key={p.id} style={{borderBottom:'1px solid #1a1a1a'}}>
+                        <td style={{padding:'8px 12px'}}>{p.name}</td>
+                        <td style={{padding:'8px 12px', textAlign:'center', color:'#888'}}>{p.team_short}</td>
+                        <td style={{padding:'8px 12px', textAlign:'center'}}>
+                          <select
+                            value={(editingPlayer[p.id]||{}).role || p.role}
+                            onChange={e => setEditingPlayer({...editingPlayer, [p.id]: {...(editingPlayer[p.id]||{}), role: e.target.value}})}
+                            style={{background:'#222', color:'#fff', border:'1px solid #333', borderRadius:4, padding:'2px 4px'}}
+                          >
+                            {['WK','BAT','AR','BOWL'].map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                        </td>
+                        <td style={{padding:'8px 12px', textAlign:'center'}}>
+                          <input
+                            type="number" step="0.5" min="7" max="13"
+                            value={(editingPlayer[p.id]||{}).credits !== undefined ? editingPlayer[p.id].credits : p.credits}
+                            onChange={e => setEditingPlayer({...editingPlayer, [p.id]: {...(editingPlayer[p.id]||{}), credits: e.target.value}})}
+                            style={{width:60, background:'#222', color:'#fff', border:'1px solid #333', borderRadius:4, padding:'2px 6px', textAlign:'center'}}
+                          />
+                        </td>
+                        <td style={{padding:'8px 12px', textAlign:'center'}}>
+                          {editingPlayer[p.id] && (
+                            <button
+                              className="edit-btn-small"
+                              onClick={async () => {
+                                try {
+                                  await FantasyService.adminUpdatePlayer(p.id, {
+                                    credits: parseFloat((editingPlayer[p.id]||{}).credits || p.credits),
+                                    role: (editingPlayer[p.id]||{}).role || p.role
+                                  })
+                                  const newEdit = {...editingPlayer}
+                                  delete newEdit[p.id]
+                                  setEditingPlayer(newEdit)
+                                  loadData()
+                                } catch(err) { alert(err.message) }
+                              }}
+                            >Save</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 

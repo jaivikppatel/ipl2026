@@ -6,6 +6,9 @@ import ForgotPassword from './ForgotPassword'
 import ResetPassword from './ResetPassword'
 import Admin from './Admin'
 import Profile from './Profile'
+import Fantasy from './Fantasy'
+import FantasyTeamBuilder from './FantasyTeamBuilder'
+import FantasyLeaderboard from './FantasyLeaderboard'
 import './App.css'
 
 function App() {
@@ -20,6 +23,9 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/fantasy" element={<Fantasy />} />
+        <Route path="/fantasy/match/:matchId" element={<FantasyTeamBuilder />} />
+        <Route path="/fantasy/match/:matchId/leaderboard" element={<FantasyLeaderboard />} />
       </Routes>
     </Router>
   )

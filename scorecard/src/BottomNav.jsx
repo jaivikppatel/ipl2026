@@ -22,6 +22,14 @@ function BottomNav() {
         <span className="nav-label">Home</span>
       </button>
 
+      <button
+        className={`nav-item ${isActive('/fantasy') ? 'active' : ''}`}
+        onClick={() => navigate('/fantasy')}
+      >
+        <span className="nav-icon">🏏</span>
+        <span className="nav-label">Fantasy</span>
+      </button>
+
       {isAdmin && (
         <button 
           className={`nav-item ${isActive('/admin') ? 'active' : ''}`}

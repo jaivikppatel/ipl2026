@@ -63,8 +63,11 @@ def run_migration(cursor, migration_name, migration_file):
         statements = [stmt.strip() for stmt in sql_content.split(';') if stmt.strip()]
         
         for statement in statements:
-            if statement and not statement.startswith('--'):
-                cursor.execute(statement)
+            # Strip leading comment lines to get the actual SQL
+            sql_lines = [line for line in statement.splitlines() if not line.strip().startswith('--')]
+            actual_sql = '\n'.join(sql_lines).strip()
+            if actual_sql:
+                cursor.execute(actual_sql)
         
         # Record the migration as applied
         cursor.execute(
