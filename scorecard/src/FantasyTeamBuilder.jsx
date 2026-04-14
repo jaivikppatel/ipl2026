@@ -11,7 +11,7 @@ const TEAM_SIZE = 11
 const MAX_CREDITS = 100.0
 const MAX_FROM_ONE_TEAM = 7
 
-const ROLE_MINS = { WK: 1, BAT: 3, AR: 1, BOWL: 3 }
+const ROLE_MINS = { WK: 1, BAT: 1, AR: 1, BOWL: 1 }
 
 function FantasyTeamBuilder() {
   const { matchId } = useParams()
@@ -189,7 +189,7 @@ function FantasyTeamBuilder() {
           <h1>{matchInfo?.short_name || matchInfo?.match_name || 'Create Team'}</h1>
           {matchInfo?.match_date && (
             <span className="ftb-header-date">
-              {new Date(matchInfo.match_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              {new Date(matchInfo.match_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
             </span>
           )}
         </div>

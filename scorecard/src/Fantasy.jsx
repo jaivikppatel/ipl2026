@@ -54,15 +54,19 @@ function Fantasy() {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
-    return new Date(dateStr).toLocaleDateString('en-IN', {
+    // Append T12:00:00 so date-only strings aren't shifted to the previous day in
+    // western timezones when JS parses them as UTC midnight.
+    const d = new Date(dateStr.includes('T') ? dateStr + 'Z' : dateStr + 'T12:00:00')
+    return d.toLocaleDateString(undefined, {
       weekday: 'short', day: 'numeric', month: 'short'
     })
   }
 
   const formatTime = (datetimeStr) => {
     if (!datetimeStr) return ''
-    return new Date(datetimeStr + 'Z').toLocaleTimeString('en-IN', {
-      hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'
+    // datetimeStr is stored as naive UTC in the DB — append Z to mark it as UTC
+    return new Date(datetimeStr + 'Z').toLocaleTimeString(undefined, {
+      hour: '2-digit', minute: '2-digit', hour12: true, timeZoneName: 'short'
     })
   }
 
@@ -106,7 +110,7 @@ function Fantasy() {
 
         <div className="match-meta">
           {match.match_date && <span>📅 {formatDate(match.match_date)}</span>}
-          {match.match_datetime_gmt && <span>🕐 {formatTime(match.match_datetime_gmt)} IST</span>}
+          {match.match_datetime_gmt && <span>🕐 {formatTime(match.match_datetime_gmt)}</span>}
           {match.venue && <span className="venue-text">📍 {match.venue}</span>}
         </div>
 

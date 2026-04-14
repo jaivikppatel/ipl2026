@@ -10,6 +10,7 @@ Schedule:
 """
 
 import os
+import re
 import json
 import logging
 import threading
@@ -184,6 +185,29 @@ def _sync_counter_from_api(hits_today: int, hits_limit: int = None):
 
 
 # ============================================================================
+# DATE / TIME HELPERS
+# ============================================================================
+
+_STATUS_TIME_RE = re.compile(r'(\d{1,2}):(\d{2})\s*(?:GMT|UTC)', re.IGNORECASE)
+
+
+def _parse_match_time_from_status(status_note: str) -> Optional[tuple]:
+    """
+    Try to extract UTC time from a status note like 'Match starts at Apr 17, 14:00 GMT'.
+    Returns (hour, minute) tuple or None if not found.
+    """
+    if not status_note:
+        return None
+    m = _STATUS_TIME_RE.search(status_note)
+    if m:
+        try:
+            return int(m.group(1)), int(m.group(2))
+        except ValueError:
+            pass
+    return None
+
+
+# ============================================================================
 # TEAM RESOLUTION
 # ============================================================================
 
@@ -243,21 +267,24 @@ def fetch_series_info():
 
             match_name = m.get('name', '')
             match_type = m.get('matchType', 't20')
-            date_str = m.get('date') or m.get('dateTimeGMT', '')
+            datetime_gmt_str = m.get('dateTimeGMT', '')
+            date_only_str = m.get('date', '')
 
-            # Parse dates
+            # Parse dates — prefer dateTimeGMT (has correct time), fall back to date
             match_date = None
             match_datetime_gmt = None
-            if date_str:
+            if datetime_gmt_str:
                 try:
-                    dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                    dt = datetime.fromisoformat(datetime_gmt_str.replace('Z', '+00:00'))
                     match_date = dt.date()
                     match_datetime_gmt = dt.replace(tzinfo=None)  # Store as naive UTC
                 except ValueError:
-                    try:
-                        match_date = datetime.strptime(date_str[:10], '%Y-%m-%d').date()
-                    except ValueError:
-                        pass
+                    pass
+            if not match_date and date_only_str:
+                try:
+                    match_date = datetime.strptime(date_only_str[:10], '%Y-%m-%d').date()
+                except ValueError:
+                    pass
 
             venue = m.get('venue')
 
@@ -271,6 +298,21 @@ def fetch_series_info():
                 status = 'live'
             else:
                 status = 'upcoming'
+
+            # If datetime has midnight time (00:00:00), the API only gave us a date.
+            # Try to extract the actual kick-off time from the status note, e.g.
+            # "Match starts at Apr 17, 14:00 GMT".  Fall back to 14:00 GMT.
+            if match_datetime_gmt and match_datetime_gmt.hour == 0 and match_datetime_gmt.minute == 0:
+                parsed = _parse_match_time_from_status(status_raw)
+                if parsed:
+                    match_datetime_gmt = match_datetime_gmt.replace(hour=parsed[0], minute=parsed[1])
+                elif status == 'upcoming':
+                    match_datetime_gmt = match_datetime_gmt.replace(hour=14, minute=0)
+            elif match_date and not match_datetime_gmt:
+                # We have a date but no datetime at all — build one from status_note or default
+                parsed = _parse_match_time_from_status(status_raw)
+                hour, minute = parsed if parsed else (14, 0)
+                match_datetime_gmt = datetime.combine(match_date, datetime.min.time()).replace(hour=hour, minute=minute)
 
             # Resolve team IDs from teams array
             teams = m.get('teams', [])

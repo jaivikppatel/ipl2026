@@ -61,7 +61,7 @@ class PlayerCreditUpdate(BaseModel):
 TEAM_SIZE = 11
 MAX_CREDITS = 100.0
 MAX_FROM_ONE_TEAM = 7
-ROLE_MINS = {'WK': 1, 'BAT': 3, 'AR': 1, 'BOWL': 3}
+ROLE_MINS = {'WK': 1, 'BAT': 1, 'AR': 1, 'BOWL': 1}
 
 
 def _validate_team(players_with_info: list) -> Optional[str]:

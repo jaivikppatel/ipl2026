@@ -40,7 +40,7 @@ function FantasyLeaderboard() {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
-    return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    return new Date(dateStr).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   const myEntry = leaderboard.find(e => e.is_current_user)
