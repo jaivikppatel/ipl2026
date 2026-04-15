@@ -398,6 +398,15 @@ def fetch_match_squad(cricapi_match_id: str, db_match_id: int):
                 bowling_style = p.get('bowlingStyle') or p.get('bowling_style')
                 country = p.get('country')
 
+                # Fetch player image URL, filtering out known generic placeholder icons
+                _PLACEHOLDER_IMGS = {
+                    'https://cdorgapi.b-cdn.net/img/icon512.png',
+                    'https://h.cricapi.com/img/icon512.png',
+                }
+                image_url = p.get('playerImg') or None
+                if image_url in _PLACEHOLDER_IMGS:
+                    image_url = None
+
                 # Detect if player is in playing XI (only set after the toss)
                 is_playing_xi = 1 if (
                     p.get('playing11') is True
@@ -410,8 +419,8 @@ def fetch_match_squad(cricapi_match_id: str, db_match_id: int):
                 if team_id:
                     cursor.execute(
                         '''INSERT INTO fantasy_ipl_players
-                           (cricapi_player_id, name, team_id, role, batting_style, bowling_style, country)
-                           VALUES (%s, %s, %s, %s, %s, %s, %s)
+                           (cricapi_player_id, name, team_id, role, batting_style, bowling_style, country, image_url)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                            ON DUPLICATE KEY UPDATE
                              name = VALUES(name),
                              team_id = VALUES(team_id),
@@ -419,8 +428,9 @@ def fetch_match_squad(cricapi_match_id: str, db_match_id: int):
                              batting_style = COALESCE(VALUES(batting_style), batting_style),
                              bowling_style = COALESCE(VALUES(bowling_style), bowling_style),
                              country = COALESCE(VALUES(country), country),
+                             image_url = COALESCE(VALUES(image_url), image_url),
                              updated_at = NOW()''',
-                        (pid, name, team_id, role, batting_style, bowling_style, country)
+                        (pid, name, team_id, role, batting_style, bowling_style, country, image_url)
                     )
                     conn.commit()
 

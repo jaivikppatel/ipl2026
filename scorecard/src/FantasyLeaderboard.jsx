@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import FantasyService from './services/FantasyService'
+import PlayerAvatar from './PlayerAvatar'
 import './FantasyLeaderboard.css'
 
 /**
@@ -258,8 +259,18 @@ function FantasyLeaderboard() {
                           {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : entry.rank || idx + 1}
                         </td>
                         <td className="name-cell">
-                          {entry.display_name}
-                          {entry.is_current_user && <span className="you-badge"> (You)</span>}
+                          <div className="name-cell-inner">
+                            <div className="user-avatar-sm">
+                              {entry.profile_picture
+                                ? <img src={entry.profile_picture} alt={entry.display_name} className="user-avatar-sm-img" />
+                                : <span className="user-avatar-sm-initials">{entry.display_name?.charAt(0).toUpperCase()}</span>
+                              }
+                            </div>
+                            <span>
+                              {entry.display_name}
+                              {entry.is_current_user && <span className="you-badge"> (You)</span>}
+                            </span>
+                          </div>
                         </td>
                         <td className="cvc-cell">
                           <span className="c-name">{entry.captain_name?.split(' ').pop() || '—'}</span>
@@ -295,6 +306,12 @@ function FantasyLeaderboard() {
                         onClick={() => setSelectedPlayer(p)}
                       >
                         <div className="mp-left">
+                          <PlayerAvatar
+                            imageUrl={p.image_url}
+                            name={p.name}
+                            teamColor={p.team_color}
+                            className="mp-avatar"
+                          />
                           {p.is_captain && <span className="mp-badge mp-badge-c">C</span>}
                           {p.is_vice_captain && <span className="mp-badge mp-badge-vc">VC</span>}
                           <div className="mp-info">
@@ -338,12 +355,12 @@ function FantasyLeaderboard() {
                     className="scores-row clickable-player"
                     onClick={() => setSelectedPlayer({ ...p, multiplier: 1.0, total_points: p.base_points, is_captain: false, is_vice_captain: false })}
                   >
-                    <div
+                    <PlayerAvatar
+                      imageUrl={p.image_url}
+                      name={p.name}
+                      teamColor={p.team_color}
                       className="scores-avatar"
-                      style={{ background: p.team_color || '#333' }}
-                    >
-                      {p.name.split(' ').pop()[0]}
-                    </div>
+                    />
                     <div className="scores-info">
                       <div className="scores-name">{p.name}</div>
                       <div className="scores-meta">
@@ -383,6 +400,12 @@ function FantasyLeaderboard() {
                       onClick={() => setSelectedPlayer(p)}
                     >
                       <div className="mp-left">
+                        <PlayerAvatar
+                          imageUrl={p.image_url}
+                          name={p.name}
+                          teamColor={p.team_color}
+                          className="mp-avatar"
+                        />
                         {p.is_captain && <span className="mp-badge mp-badge-c">C</span>}
                         {p.is_vice_captain && <span className="mp-badge mp-badge-vc">VC</span>}
                         <div className="mp-info">

@@ -192,7 +192,7 @@ async def get_match_players(
             # Return announced squad
             cursor.execute(
                 '''SELECT
-                     p.id, p.name, p.role, p.credits, p.batting_style, p.bowling_style, p.country,
+                     p.id, p.name, p.role, p.credits, p.batting_style, p.bowling_style, p.country, p.image_url,
                      t.short_name AS team_short, t.full_name AS team_name, t.primary_color,
                      fqs.is_playing_xi
                    FROM fantasy_match_squads fqs
@@ -212,7 +212,7 @@ async def get_match_players(
             placeholders = ','.join(['%s'] * len(team_ids))
             cursor.execute(
                 f'''SELECT
-                     p.id, p.name, p.role, p.credits, p.batting_style, p.bowling_style, p.country,
+                     p.id, p.name, p.role, p.credits, p.batting_style, p.bowling_style, p.country, p.image_url,
                      t.short_name AS team_short, t.full_name AS team_name, t.primary_color,
                      0 AS is_playing_xi
                    FROM fantasy_ipl_players p
@@ -232,6 +232,7 @@ async def get_match_players(
                 'batting_style': r['batting_style'],
                 'bowling_style': r['bowling_style'],
                 'country': r['country'],
+                'image_url': r['image_url'],
                 'team_short': r['team_short'],
                 'team_name': r['team_name'],
                 'team_color': r['primary_color'],
@@ -275,7 +276,7 @@ async def get_my_team(
         cursor.execute(
             '''SELECT
                  futp.player_id, futp.is_captain, futp.is_vice_captain,
-                 p.name, p.role, p.credits,
+                 p.name, p.role, p.credits, p.image_url,
                  t.short_name AS team_short, t.primary_color
                FROM fantasy_user_team_players futp
                JOIN fantasy_ipl_players p ON futp.player_id = p.id
@@ -316,6 +317,7 @@ async def get_my_team(
                         'name': p['name'],
                         'role': p['role'],
                         'credits': float(p['credits']),
+                        'image_url': p['image_url'],
                         'team_short': p['team_short'],
                         'team_color': p['primary_color'],
                         'is_captain': bool(p['is_captain']),
@@ -467,7 +469,7 @@ async def get_match_leaderboard(
         cursor.execute(
             '''SELECT
                  fml.rank, fml.total_points, fml.user_id,
-                 u.display_name,
+                 u.display_name, u.profile_picture,
                  cp.name AS captain_name,
                  vcp.name AS vc_name
                FROM fantasy_match_leaderboard fml
@@ -484,6 +486,7 @@ async def get_match_leaderboard(
                 'rank': r['rank'],
                 'user_id': r['user_id'],
                 'display_name': r['display_name'],
+                'profile_picture': r['profile_picture'],
                 'total_points': float(r['total_points']),
                 'captain_name': r['captain_name'],
                 'vc_name': r['vc_name'],
@@ -546,7 +549,7 @@ async def get_user_team(
         cursor.execute(
             '''SELECT
                  futp.player_id, futp.is_captain, futp.is_vice_captain,
-                 p.name, p.role, p.credits,
+                 p.name, p.role, p.credits, p.image_url,
                  t.short_name AS team_short, t.primary_color
                FROM fantasy_user_team_players futp
                JOIN fantasy_ipl_players p ON futp.player_id = p.id
@@ -586,6 +589,7 @@ async def get_user_team(
                     'name': p['name'],
                     'role': p['role'],
                     'credits': float(p['credits']),
+                    'image_url': p['image_url'],
                     'team_short': p['team_short'],
                     'team_color': p['primary_color'],
                     'is_captain': bool(p['is_captain']),
@@ -647,7 +651,7 @@ async def get_match_points_breakdown(
         cursor.execute(
             '''SELECT
                  futp.player_id, futp.is_captain, futp.is_vice_captain,
-                 p.name, p.role,
+                 p.name, p.role, p.image_url,
                  t.short_name AS team_short,
                  COALESCE(fpms.runs_scored, 0) AS runs_scored,
                  COALESCE(fpms.balls_faced, 0) AS balls_faced,
@@ -674,6 +678,7 @@ async def get_match_points_breakdown(
                 'player_id': r['player_id'],
                 'name': r['name'],
                 'role': r['role'],
+                'image_url': r['image_url'],
                 'team_short': r['team_short'],
                 'is_captain': bool(r['is_captain']),
                 'is_vice_captain': bool(r['is_vice_captain']),
@@ -717,6 +722,7 @@ async def get_match_player_scores(match_id: int):
                  fpms.player_id,
                  p.name,
                  p.role,
+                 p.image_url,
                  t.short_name AS team_short,
                  t.primary_color AS team_color,
                  COALESCE(fpms.runs_scored, 0) AS runs_scored,
@@ -740,6 +746,7 @@ async def get_match_player_scores(match_id: int):
                 'player_id': r['player_id'],
                 'name': r['name'],
                 'role': r['role'],
+                'image_url': r['image_url'],
                 'team_short': r['team_short'],
                 'team_color': r['team_color'],
                 'stats': {
@@ -783,7 +790,7 @@ async def admin_get_players(
     try:
         cursor.execute(
             '''SELECT p.id, p.cricapi_player_id, p.name, p.role, p.credits, p.is_active,
-                      p.batting_style, p.bowling_style, p.country,
+                      p.batting_style, p.bowling_style, p.country, p.image_url,
                       t.short_name AS team_short, t.full_name AS team_name, t.id AS team_id
                FROM fantasy_ipl_players p
                JOIN fantasy_ipl_teams t ON p.team_id = t.id
@@ -801,6 +808,7 @@ async def admin_get_players(
                 'batting_style': r['batting_style'],
                 'bowling_style': r['bowling_style'],
                 'country': r['country'],
+                'image_url': r['image_url'],
                 'team_id': r['team_id'],
                 'team_short': r['team_short'],
                 'team_name': r['team_name'],

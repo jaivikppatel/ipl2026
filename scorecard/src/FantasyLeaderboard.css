@@ -240,6 +240,39 @@
   font-weight: 600;
 }
 
+.name-cell-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-avatar-sm-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.user-avatar-sm-initials {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
 .you-badge {
   font-size: 0.7rem;
   color: #ec008c;
@@ -332,6 +365,21 @@
 .mp-badge-vc { background: #c0c0c0; color: #000; }
 
 .mp-info { min-width: 0; }
+
+.mp-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
 
 .mp-name {
   font-size: 0.88rem;
@@ -492,6 +540,8 @@
   font-size: 0.9rem;
   color: #fff;
   flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
 }
 
 .scores-info {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import FantasyService from './services/FantasyService'
+import PlayerAvatar from './PlayerAvatar'
 import './FantasyTeamBuilder.css'
 
 const ROLES = ['WK', 'BAT', 'AR', 'BOWL']
@@ -277,9 +278,12 @@ function FantasyTeamBuilder() {
                   )}
                 >
                   <div className="player-left">
-                    <div className="player-avatar" style={{ background: player.team_color || '#333' }}>
-                      {player.name.charAt(0)}
-                    </div>
+                    <PlayerAvatar
+                      imageUrl={player.image_url}
+                      name={player.name}
+                      teamColor={player.team_color}
+                      className="player-avatar"
+                    />
                     <div className="player-info">
                       <div className="player-name">
                         {player.name}
@@ -332,9 +336,12 @@ function FantasyTeamBuilder() {
                   className={`cvc-card ${isCap ? 'is-captain' : isVC ? 'is-vc' : ''}`}
                   onClick={() => setCaptainVC(player.id)}
                 >
-                  <div className="cvc-avatar" style={{ background: player.team_color || '#333' }}>
-                    {player.name.charAt(0)}
-                  </div>
+                  <PlayerAvatar
+                    imageUrl={player.image_url}
+                    name={player.name}
+                    teamColor={player.team_color}
+                    className="cvc-avatar"
+                  />
                   <div className="cvc-info">
                     <div className="cvc-name">{player.name}</div>
                     <div className="cvc-meta">
