@@ -487,6 +487,36 @@ def _map_role(role_raw: str) -> str:
     return 'BAT'
 
 
+def promote_started_matches():
+    """
+    Promote matches from 'upcoming' to 'live' once their scheduled start time has passed.
+    Runs every 5 minutes. No API calls — pure DB update.
+    This ensures update_live_matches() can pick them up without waiting for the
+    next fetch_series_info run (which only occurs twice per day).
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            '''UPDATE fantasy_match_schedule
+               SET status = 'live', last_synced_at = NOW()
+               WHERE status = 'upcoming'
+                 AND match_datetime_gmt IS NOT NULL
+                 AND match_datetime_gmt <= UTC_TIMESTAMP()'''
+        )
+        promoted = cursor.rowcount
+        conn.commit()
+        if promoted:
+            logger.info('promote_started_matches: promoted %d match(es) to live', promoted)
+            print(f'[fantasy] promote_started_matches: promoted {promoted} match(es) to live')
+    except Exception as e:
+        logger.error('promote_started_matches error: %s', e)
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def check_and_fetch_squads():
     """
     Fetch squads for ALL upcoming matches that haven't had their squad fetched yet.
@@ -835,6 +865,16 @@ def start_scheduler():
         id='squad_sync',
         replace_existing=True,
         misfire_grace_time=120,
+    )
+
+    # Promote upcoming matches to live once their start time has passed (every 5 min, no API cost)
+    _scheduler.add_job(
+        promote_started_matches,
+        trigger='interval',
+        minutes=5,
+        id='status_transition',
+        replace_existing=True,
+        misfire_grace_time=60,
     )
 
     # Update live match scorecards every 2 min
