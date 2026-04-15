@@ -32,7 +32,6 @@ from fantasy_points import (
 logger = logging.getLogger(__name__)
 
 CRICAPI_BASE = 'https://api.cricapi.com/v1'
-IPL_SERIES_ID = os.getenv('FANTASY_IPL_SERIES_ID', '87c62aac-bc3c-4738-ab93-19da0690488f')
 DAILY_API_LIMIT = 10000
 DAILY_API_SAFETY_LIMIT = 9500  # Stop early to preserve buffer
 
@@ -243,19 +242,45 @@ def _resolve_team_id(cursor, team_name: str) -> Optional[int]:
 
 def fetch_series_info():
     """
-    Fetch IPL 2026 series info and upsert all matches into fantasy_match_schedule.
+    Fetch series info for ALL active series in fantasy_series table and upsert
+    their matches into fantasy_match_schedule (tagged with the correct series_id).
     Recommended max: 2-3 times per day.
-    API cost: 1 call.
+    API cost: 1 call per active series.
     """
     logger.info('fetch_series_info: starting')
-    print('[fantasy] fetch_series_info: calling API...')
-    data = _cricapi_get('series_info', {'id': IPL_SERIES_ID})
+    # Load all active series from DB
+    conn_pre = get_db_connection()
+    cur_pre = conn_pre.cursor(dictionary=True)
+    try:
+        cur_pre.execute(
+            'SELECT id, name, cricapi_series_id FROM fantasy_series WHERE is_active = 1 ORDER BY id ASC'
+        )
+        active_series = cur_pre.fetchall()
+    finally:
+        cur_pre.close()
+        conn_pre.close()
+
+    if not active_series:
+        print('[fantasy] fetch_series_info: no active series in DB, skipping')
+        return
+
+    print(f'[fantasy] fetch_series_info: processing {len(active_series)} active series')
+    for series in active_series:
+        _fetch_single_series(series['id'], series['name'], series['cricapi_series_id'])
+
+
+def _fetch_single_series(series_db_id: int, series_name: str, cricapi_series_id: str):
+    """
+    Fetch one series from CricAPI and upsert its matches tagged with series_db_id.
+    """
+    print(f'[fantasy] fetch_series_info: fetching "{series_name}" ({cricapi_series_id})')
+    data = _cricapi_get('series_info', {'id': cricapi_series_id})
     if not data:
-        print('[fantasy] fetch_series_info: no data returned from API')
+        print(f'[fantasy] fetch_series_info: no data for series "{series_name}"')
         return
 
     match_list = data.get('data', {}).get('matchList', [])
-    logger.info('fetch_series_info: found %d matches', len(match_list))
+    logger.info('fetch_series_info: series "%s" has %d matches', series_name, len(match_list))
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -328,9 +353,9 @@ def fetch_series_info():
 
             cursor.execute(
                 '''INSERT INTO fantasy_match_schedule
-                   (cricapi_match_id, match_name, short_name, team1_id, team2_id,
+                   (series_id, cricapi_match_id, match_name, short_name, team1_id, team2_id,
                     match_date, match_datetime_gmt, venue, match_type, status, status_note, live_score, last_synced_at)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                    ON DUPLICATE KEY UPDATE
                      match_name = VALUES(match_name),
                      short_name = VALUES(short_name),
@@ -344,14 +369,14 @@ def fetch_series_info():
                      status_note = VALUES(status_note),
                      live_score = COALESCE(VALUES(live_score), live_score),
                      last_synced_at = NOW()''',
-                (match_id, match_name, short_parts, team1_id, team2_id,
+                (series_db_id, match_id, match_name, short_parts, team1_id, team2_id,
                  match_date, match_datetime_gmt, venue, match_type, status, status_raw, live_score_json)
             )
         conn.commit()
-        logger.info('fetch_series_info: upserted %d matches', len(match_list))
-        print(f'[fantasy] fetch_series_info: upserted {len(match_list)} matches')
+        logger.info('fetch_series_info: upserted %d matches for series "%s"', len(match_list), series_name)
+        print(f'[fantasy] fetch_series_info: upserted {len(match_list)} matches for "{series_name}"')
     except Exception as e:
-        logger.error('fetch_series_info DB error: %s', e)
+        logger.error('fetch_series_info DB error for series "%s": %s', series_name, e)
         conn.rollback()
     finally:
         cursor.close()

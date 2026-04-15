@@ -10,20 +10,42 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [emailNotVerified, setEmailNotVerified] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setEmailNotVerified(false)
+    setResendMessage('')
     setLoading(true)
 
     try {
       await AuthService.login(email, password)
       navigate('/dashboard')
     } catch (err) {
-      setError(err.message)
+      if (err.message === 'EMAIL_NOT_VERIFIED') {
+        setEmailNotVerified(true)
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    setResendLoading(true)
+    setResendMessage('')
+    try {
+      await AuthService.resendVerification(email)
+      setResendMessage('Verification email sent! Please check your inbox.')
+    } catch (err) {
+      setResendMessage('Failed to send. Please try again.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -106,6 +128,36 @@ function Login() {
           {error && (
             <div className="error-banner">
               <span>⚠</span> {error}
+            </div>
+          )}
+
+          {emailNotVerified && (
+            <div className="error-banner">
+              <span>⚠</span> Please verify your email before logging in.
+              {resendMessage ? (
+                <div style={{ marginTop: '8px', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                  {resendMessage}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendLoading}
+                  style={{
+                    display: 'block',
+                    marginTop: '8px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#fff',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  {resendLoading ? 'Sending...' : 'Resend verification email'}
+                </button>
+              )}
             </div>
           )}
 

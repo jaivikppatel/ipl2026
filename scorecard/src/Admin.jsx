@@ -20,6 +20,9 @@ function Admin() {
   const [fantasyPlayers, setFantasyPlayers] = useState([])
   const [fantasyApiUsage, setFantasyApiUsage] = useState({})
   const [fantasyMatches, setFantasyMatches] = useState([])
+  const [fantasySeries, setFantasySeries] = useState([])
+  const [newSeriesName, setNewSeriesName] = useState('')
+  const [newSeriesCricapiId, setNewSeriesCricapiId] = useState('')
   const [editingPlayer, setEditingPlayer] = useState({})
   const navigate = useNavigate()
 
@@ -44,14 +47,16 @@ function Admin() {
         setProfiles(data.profiles || [])
       }
       if (activeTab === 'fantasy') {
-        const [usageData, matchesData, playersData] = await Promise.all([
+        const [usageData, matchesData, playersData, seriesData] = await Promise.all([
           FantasyService.adminGetApiUsage(),
           FantasyService.adminGetMatches(),
-          FantasyService.adminGetPlayers()
+          FantasyService.adminGetPlayers(),
+          FantasyService.adminGetSeries(),
         ])
         setFantasyApiUsage(usageData || {})
         setFantasyMatches(matchesData.matches || [])
         setFantasyPlayers(playersData.players || [])
+        setFantasySeries(seriesData.series || [])
       }
     } catch (err) {
       console.error(err)
@@ -279,6 +284,69 @@ function Admin() {
         {/* FANTASY TAB */}
         {activeTab === 'fantasy' && !loading && (
           <div className="section">
+
+            {/* Series Management */}
+            <div className="section-header">
+              <h2>Series Management</h2>
+            </div>
+            <div className="series-mgmt-list">
+              {fantasySeries.length === 0 ? (
+                <p style={{color:'#555', padding:'12px 0'}}>No series found.</p>
+              ) : fantasySeries.map(s => (
+                <div key={s.id} className="series-mgmt-row">
+                  <div className="series-mgmt-info">
+                    <span className="series-mgmt-name">{s.name}</span>
+                    <span className="series-mgmt-id" title={s.cricapi_series_id}>
+                      {s.cricapi_series_id.slice(0, 8)}…
+                    </span>
+                    <span className={`series-active-badge ${s.is_active ? 'active' : 'inactive'}`}>
+                      {s.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    <span className="series-mgmt-count">{s.match_count} matches</span>
+                  </div>
+                  <button
+                    className="series-toggle-btn"
+                    onClick={async () => {
+                      try {
+                        await FantasyService.adminUpdateSeries(s.id, { is_active: !s.is_active })
+                        loadData()
+                      } catch (err) { alert(err.message) }
+                    }}
+                  >
+                    {s.is_active ? 'Deactivate' : 'Activate'}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="series-add-form">
+              <input
+                className="series-input"
+                placeholder="Series name (e.g. IPL 2027)"
+                value={newSeriesName}
+                onChange={e => setNewSeriesName(e.target.value)}
+              />
+              <input
+                className="series-input"
+                placeholder="CricAPI Series ID (UUID)"
+                value={newSeriesCricapiId}
+                onChange={e => setNewSeriesCricapiId(e.target.value)}
+              />
+              <button
+                className="primary-btn"
+                disabled={!newSeriesName.trim() || !newSeriesCricapiId.trim()}
+                onClick={async () => {
+                  try {
+                    await FantasyService.adminCreateSeries({
+                      name: newSeriesName.trim(),
+                      cricapi_series_id: newSeriesCricapiId.trim(),
+                    })
+                    setNewSeriesName('')
+                    setNewSeriesCricapiId('')
+                    loadData()
+                  } catch (err) { alert(err.message) }
+                }}
+              >+ Add Series</button>
+            </div>
             {/* API Usage */}
             <div className="section-header">
               <h2>API Usage Today</h2>

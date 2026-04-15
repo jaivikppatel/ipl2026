@@ -16,10 +16,43 @@ class AuthService {
       throw new Error(data.detail || data.error || 'Signup failed');
     }
 
-    // Store token in localStorage
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    
+    // No token stored — user must verify email before logging in
+    return data;
+  }
+
+  static async verifyEmail(token) {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || data.error || 'Verification failed');
+    }
+
+    return data;
+  }
+
+  static async resendVerification(email) {
+    const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || data.error || 'Request failed');
+    }
+
     return data;
   }
 

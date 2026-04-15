@@ -204,6 +204,16 @@ class UpdatePasswordRequest(BaseModel):
 class UpdateProfilePictureRequest(BaseModel):
     profilePicture: str
 
+class EmailVerifyRequest(BaseModel):
+    token: str
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+class SignupSuccessResponse(BaseModel):
+    message: str
+    email: str
+
 
 def get_db_connection():
     """Create and return a database connection"""
@@ -330,9 +340,9 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
 # AUTHENTICATION ENDPOINTS
 # ============================================================================
 
-@app.post('/api/auth/signup', response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@app.post('/api/auth/signup', response_model=SignupSuccessResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupRequest):
-    """Register a new user"""
+    """Register a new user — account is created but email must be verified before first login"""
     try:
         display_name = request.displayName.strip()
         email = request.email.lower()
@@ -362,32 +372,156 @@ async def signup(request: SignupRequest):
         # Hash password
         password_hash = hash_password(password)
         
-        # Insert user into database
+        # Insert user into database (email_verified always starts as FALSE)
         conn = get_db_connection()
         cursor = conn.cursor()
         
         try:
             cursor.execute(
                 """INSERT INTO users (display_name, email, password_hash, email_verified) 
-                   VALUES (%s, %s, %s, %s)""",
-                (display_name, email, password_hash, not bool(os.getenv('EMAIL_VERIFICATION_ENABLED', 'False') == 'True'))
+                   VALUES (%s, %s, %s, FALSE)""",
+                (display_name, email, password_hash)
             )
             conn.commit()
             user_id = cursor.lastrowid
             
-            # Generate JWT token
-            token = generate_token(user_id, email)
+            # Generate verification token (24-hour expiry)
+            verification_token = secrets.token_urlsafe(32)
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+            
+            # Invalidate any existing unused tokens for this user
+            cursor.execute(
+                "UPDATE email_verification_tokens SET used = TRUE WHERE user_id = %s AND used = FALSE",
+                (user_id,)
+            )
+            
+            # Store verification token
+            cursor.execute(
+                """INSERT INTO email_verification_tokens (user_id, token, expires_at) 
+                   VALUES (%s, %s, %s)""",
+                (user_id, verification_token, expires_at)
+            )
+            conn.commit()
+            
+            # Build verification link
+            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+            verify_link = f"{frontend_url}/#/verify-email?token={verification_token}"
+            
+            # Prepare email content
+            subject = "Verify Your Email - Cricket Scorecard"
+            
+            html_body = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }}
+                    .header {{
+                        background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+                        color: white;
+                        padding: 30px;
+                        border-radius: 10px;
+                        text-align: center;
+                    }}
+                    .content {{
+                        background: #f9f9f9;
+                        padding: 30px;
+                        border-radius: 10px;
+                        margin-top: 20px;
+                    }}
+                    .button {{
+                        display: inline-block;
+                        padding: 15px 30px;
+                        background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 10px;
+                        font-weight: bold;
+                        margin: 20px 0;
+                    }}
+                    .footer {{
+                        text-align: center;
+                        margin-top: 20px;
+                        color: #666;
+                        font-size: 12px;
+                    }}
+                    .warning {{
+                        background: #fff3cd;
+                        border-left: 4px solid #ffc107;
+                        padding: 15px;
+                        margin: 20px 0;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>🏏 Cricket Scorecard</h1>
+                    <p>Verify Your Email Address</p>
+                </div>
+                <div class="content">
+                    <p>Hi {display_name},</p>
+                    <p>Welcome to Cricket Scorecard! Please verify your email address to activate your account.</p>
+                    <p>Click the button below to verify your email:</p>
+                    <div style="text-align: center;">
+                        <a href="{verify_link}" class="button">Verify Email</a>
+                    </div>
+                    <p>Or copy and paste this link into your browser:</p>
+                    <p style="word-break: break-all; background: #fff; padding: 10px; border-radius: 5px;">
+                        {verify_link}
+                    </p>
+                    <div class="warning">
+                        <strong>⚠️ Important:</strong>
+                        <ul>
+                            <li>This link will expire in 24 hours</li>
+                            <li>You must verify your email before you can log in</li>
+                            <li>If you didn't create this account, please ignore this email</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>This is an automated email from Cricket Scorecard.</p>
+                </div>
+            </body>
+            </html>
+            """
+            
+            text_body = f"""
+            Cricket Scorecard - Verify Your Email
+            
+            Hi {display_name},
+            
+            Welcome to Cricket Scorecard! Please verify your email address to activate your account.
+            
+            Click the link below to verify your email:
+            {verify_link}
+            
+            IMPORTANT:
+            - This link will expire in 24 hours
+            - You must verify your email before you can log in
+            - If you didn't create this account, please ignore this email
+            
+            ---
+            This is an automated email from Cricket Scorecard.
+            """
+            
+            email_sent, email_error = send_email(email, subject, html_body, text_body)
+            
+            if not email_sent:
+                print(f"Email verification link for {email}: {verify_link}")
+                print(f"Email error: {email_error}")
+            else:
+                print(f"Verification email sent successfully to {email}")
             
             return {
-                'message': 'User registered successfully',
-                'token': token,
-                'user': {
-                    'id': user_id,
-                    'displayName': display_name,
-                    'email': email,
-                    'isAdmin': False,
-                    'profilePicture': None
-                }
+                'message': 'Account created! Please check your email to verify your address before logging in.',
+                'email': email
             }
             
         except mysql.connector.IntegrityError as e:
@@ -424,7 +558,7 @@ async def login(request: LoginRequest):
         try:
             # Get user by email
             cursor.execute(
-                """SELECT id, display_name, email, password_hash, is_active, profile_picture 
+                """SELECT id, display_name, email, password_hash, is_active, email_verified, profile_picture, is_admin
                    FROM users WHERE email = %s""",
                 (email,)
             )
@@ -447,6 +581,13 @@ async def login(request: LoginRequest):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail='Invalid email or password'
+                )
+            
+            # Block login if email is not verified
+            if not user['email_verified']:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail='EMAIL_NOT_VERIFIED'
                 )
             
             # Update last login
@@ -529,6 +670,236 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='An error occurred'
         )
+
+# ============================================================================
+# EMAIL VERIFICATION ENDPOINTS
+# ============================================================================
+
+@app.post('/api/auth/verify-email', response_model=MessageResponse)
+async def verify_email(request: EmailVerifyRequest):
+    """Verify email address using the token sent during signup"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            cursor.execute(
+                """SELECT evt.id, evt.user_id, evt.used, evt.expires_at
+                   FROM email_verification_tokens evt
+                   WHERE evt.token = %s""",
+                (request.token,)
+            )
+            token_row = cursor.fetchone()
+            
+            if not token_row:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Invalid or expired verification link'
+                )
+            
+            if token_row['used']:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='This verification link has already been used'
+                )
+            
+            # Check expiry (timezone-aware)
+            expires_at = token_row['expires_at']
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > expires_at:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Invalid or expired verification link'
+                )
+            
+            # Mark email as verified
+            cursor.execute(
+                "UPDATE users SET email_verified = TRUE WHERE id = %s",
+                (token_row['user_id'],)
+            )
+            
+            # Mark token as used
+            cursor.execute(
+                "UPDATE email_verification_tokens SET used = TRUE WHERE id = %s",
+                (token_row['id'],)
+            )
+            conn.commit()
+            
+            return {'message': 'Email verified successfully! You can now log in.'}
+            
+        finally:
+            cursor.close()
+            conn.close()
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Verify email error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='An error occurred during email verification'
+        )
+
+
+@app.post('/api/auth/resend-verification', response_model=MessageResponse)
+async def resend_verification(request: ResendVerificationRequest):
+    """Resend email verification link"""
+    try:
+        email = request.email.lower()
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            cursor.execute(
+                "SELECT id, display_name, email_verified FROM users WHERE email = %s AND is_active = TRUE",
+                (email,)
+            )
+            user = cursor.fetchone()
+            
+            # Always return success to prevent email enumeration
+            if user and not user['email_verified']:
+                # Invalidate existing unused tokens
+                cursor.execute(
+                    "UPDATE email_verification_tokens SET used = TRUE WHERE user_id = %s AND used = FALSE",
+                    (user['id'],)
+                )
+                
+                # Generate new token (24-hour expiry)
+                verification_token = secrets.token_urlsafe(32)
+                expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+                
+                cursor.execute(
+                    """INSERT INTO email_verification_tokens (user_id, token, expires_at) 
+                       VALUES (%s, %s, %s)""",
+                    (user['id'], verification_token, expires_at)
+                )
+                conn.commit()
+                
+                frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+                verify_link = f"{frontend_url}/#/verify-email?token={verification_token}"
+                
+                subject = "Verify Your Email - Cricket Scorecard"
+                
+                html_body = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{
+                            font-family: Arial, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            max-width: 600px;
+                            margin: 0 auto;
+                            padding: 20px;
+                        }}
+                        .header {{
+                            background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+                            color: white;
+                            padding: 30px;
+                            border-radius: 10px;
+                            text-align: center;
+                        }}
+                        .content {{
+                            background: #f9f9f9;
+                            padding: 30px;
+                            border-radius: 10px;
+                            margin-top: 20px;
+                        }}
+                        .button {{
+                            display: inline-block;
+                            padding: 15px 30px;
+                            background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 10px;
+                            font-weight: bold;
+                            margin: 20px 0;
+                        }}
+                        .footer {{
+                            text-align: center;
+                            margin-top: 20px;
+                            color: #666;
+                            font-size: 12px;
+                        }}
+                        .warning {{
+                            background: #fff3cd;
+                            border-left: 4px solid #ffc107;
+                            padding: 15px;
+                            margin: 20px 0;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>🏏 Cricket Scorecard</h1>
+                        <p>Verify Your Email Address</p>
+                    </div>
+                    <div class="content">
+                        <p>Hi {user['display_name']},</p>
+                        <p>Here is your new email verification link for Cricket Scorecard.</p>
+                        <p>Click the button below to verify your email:</p>
+                        <div style="text-align: center;">
+                            <a href="{verify_link}" class="button">Verify Email</a>
+                        </div>
+                        <p>Or copy and paste this link into your browser:</p>
+                        <p style="word-break: break-all; background: #fff; padding: 10px; border-radius: 5px;">
+                            {verify_link}
+                        </p>
+                        <div class="warning">
+                            <strong>⚠️ Important:</strong>
+                            <ul>
+                                <li>This link will expire in 24 hours</li>
+                                <li>Any previous verification links are now invalid</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>This is an automated email from Cricket Scorecard.</p>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                text_body = f"""
+                Cricket Scorecard - Verify Your Email
+                
+                Hi {user['display_name']},
+                
+                Here is your new email verification link:
+                {verify_link}
+                
+                This link will expire in 24 hours. Any previous verification links are now invalid.
+                
+                ---
+                This is an automated email from Cricket Scorecard.
+                """
+                
+                email_sent, email_error = send_email(email, subject, html_body, text_body)
+                
+                if not email_sent:
+                    print(f"Email verification link for {email}: {verify_link}")
+                    print(f"Email error: {email_error}")
+                else:
+                    print(f"Verification email resent successfully to {email}")
+            
+            return {'message': 'If your email is unverified, a new verification link has been sent.'}
+            
+        finally:
+            cursor.close()
+            conn.close()
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Resend verification error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='An error occurred'
+        )
+
 
 # ============================================================================
 # PASSWORD RESET ENDPOINTS

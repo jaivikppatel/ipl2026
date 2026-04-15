@@ -42,6 +42,71 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+/* ── Series Tabs ─────────────────────────────────────── */
+.series-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #0a0a0a;
+  overflow-x: auto;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.series-tab {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 6px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.series-tab.active {
+  background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+  border-color: transparent;
+  color: #fff;
+}
+
+.series-tab:hover:not(.active) {
+  border-color: #555;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Subtabs ─────────────────────────────────────────── */
+.fantasy-subtabs {
+  display: flex;
+  gap: 0;
+  background: #111;
+  border-bottom: 1px solid #222;
+}
+
+.fantasy-subtab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 12px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.fantasy-subtab.active {
+  color: #fff;
+  border-bottom-color: #ec008c;
+}
+
+.fantasy-subtab:hover:not(.active) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* ── Scoring Rules Modal ─────────────────────────────── */
 .rules-overlay {
   position: fixed;
@@ -462,3 +527,65 @@
 .action-btn:active {
   transform: scale(0.97);
 }
+
+/* ── Locked create button ────────────────────────────── */
+.locked-btn {
+  background: #1e1e1e !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid #333 !important;
+  cursor: pointer;
+}
+
+/* ── Access Denied Modal ─────────────────────────────── */
+.access-denied-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.access-denied-modal {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 16px;
+  padding: 32px 24px;
+  max-width: 340px;
+  width: 100%;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+.access-denied-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.access-denied-modal h3 {
+  color: #fff;
+  font-size: 1.2rem;
+  margin: 0 0 10px;
+}
+
+.access-denied-modal p {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+
+.access-denied-ok {
+  background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 32px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+}
+

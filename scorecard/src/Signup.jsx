@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import './Signup.css'
 import logo from './assets/logo.svg'
@@ -15,6 +15,10 @@ function Signup() {
   const [loading, setLoading] = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
   const [requirements, setRequirements] = useState(null)
+  const [success, setSuccess] = useState(false)
+  const [successEmail, setSuccessEmail] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
   const [passwordStrength, setPasswordStrength] = useState({
     minLength: false,
     uppercase: false,
@@ -22,7 +26,6 @@ function Signup() {
     digit: false,
     special: false
   })
-  const navigate = useNavigate()
 
   useEffect(() => {
     // Fetch password requirements from backend
@@ -55,13 +58,66 @@ function Signup() {
     setLoading(true)
 
     try {
-      await AuthService.signup(name, email, password)
-      navigate('/dashboard')
+      const data = await AuthService.signup(name, email, password)
+      setSuccessEmail(data.email || email)
+      setSuccess(true)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleResend = async () => {
+    setResendLoading(true)
+    setResendMessage('')
+    try {
+      await AuthService.resendVerification(successEmail)
+      setResendMessage('Verification email sent!')
+    } catch (err) {
+      setResendMessage('Failed to resend. Please try again.')
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <div className="auth-logo">
+            <img src={logo} alt="Cricket Scorecard Logo" />
+          </div>
+          <div className="success-message">
+            <div className="success-icon">✓</div>
+            <h1 className="auth-title">Check Your Email</h1>
+            <p className="auth-subtitle">
+              We sent a verification link to <strong>{successEmail}</strong>.
+              Please verify your email before logging in.
+            </p>
+            <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '12px' }}>
+              The link expires in 24 hours.
+            </p>
+          </div>
+          {resendMessage && (
+            <div className={resendMessage.includes('Failed') ? 'error-banner' : 'success-banner'}>
+              {resendMessage}
+            </div>
+          )}
+          <button
+            className="auth-button"
+            onClick={handleResend}
+            disabled={resendLoading}
+            style={{ marginTop: '16px' }}
+          >
+            {resendLoading ? 'Sending...' : 'Resend verification email'}
+          </button>
+          <div className="auth-footer">
+            <p>Already verified? <Link to="/login">Sign In</Link></p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

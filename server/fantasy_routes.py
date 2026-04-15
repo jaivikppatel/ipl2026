@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import mysql.connector
-from fastapi import APIRouter, HTTPException, Depends, Header, status
+from fastapi import APIRouter, HTTPException, Depends, Header, Query, status
 from pydantic import BaseModel
 
 fantasy_router = APIRouter(prefix='/api/fantasy', tags=['fantasy'])
@@ -51,6 +51,16 @@ class TeamSubmitRequest(BaseModel):
 class PlayerCreditUpdate(BaseModel):
     credits: Optional[float] = None
     role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class SeriesCreate(BaseModel):
+    name: str
+    cricapi_series_id: str
+
+
+class SeriesUpdate(BaseModel):
+    name: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -119,29 +129,96 @@ def _validate_team(players_with_info: list) -> Optional[str]:
 
 
 # ============================================================================
-# USER ENDPOINTS
+# SERIES ENDPOINT
 # ============================================================================
 
-@fantasy_router.get('/matches')
-async def get_matches(current_user: dict = Depends(lambda: None)):
-    """List all IPL 2026 matches with status."""
-    from app import get_current_user
-    # Allow unauthenticated access but still accept token if present
+@fantasy_router.get('/series')
+async def get_series(
+    authorization: Optional[str] = Header(None)
+):
+    """List all active series. If authenticated, includes user_has_access per series."""
+    current_user_id = None
+    if authorization:
+        try:
+            from app import get_current_user
+            user = await get_current_user(authorization)
+            current_user_id = user['user_id']
+        except Exception:
+            pass
+
     conn = _get_db()
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            '''SELECT
-                 fms.id, fms.cricapi_match_id, fms.match_name, fms.short_name,
-                 fms.match_date, fms.match_datetime_gmt, fms.venue,
-                 fms.status, fms.status_note, fms.live_score, fms.squad_fetched, fms.playing_xi_announced,
-                 t1.short_name AS team1_short, t1.full_name AS team1_name, t1.primary_color AS team1_color,
-                 t2.short_name AS team2_short, t2.full_name AS team2_name, t2.primary_color AS team2_color
-               FROM fantasy_match_schedule fms
-               LEFT JOIN fantasy_ipl_teams t1 ON fms.team1_id = t1.id
-               LEFT JOIN fantasy_ipl_teams t2 ON fms.team2_id = t2.id
-               ORDER BY fms.match_datetime_gmt ASC, fms.match_date ASC'''
+            'SELECT id, name, cricapi_series_id, is_active FROM fantasy_series WHERE is_active = 1 ORDER BY id ASC'
         )
+        rows = cursor.fetchall()
+
+        # Build access map for authenticated user
+        access_set = set()
+        if current_user_id:
+            cursor.execute(
+                'SELECT series_id FROM fantasy_series_access WHERE user_id = %s',
+                (current_user_id,)
+            )
+            access_set = {r['series_id'] for r in cursor.fetchall()}
+
+        series = [
+            {
+                'id': row['id'],
+                'name': row['name'],
+                'cricapi_series_id': row['cricapi_series_id'],
+                'is_active': bool(row['is_active']),
+                'user_has_access': row['id'] in access_set,
+            }
+            for row in rows
+        ]
+        return {'series': series}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ============================================================================
+# USER ENDPOINTS
+# ============================================================================
+
+@fantasy_router.get('/matches')
+async def get_matches(
+    series_id: Optional[int] = Query(None, description='Filter matches by series ID'),
+):
+    """List matches with status, optionally scoped to a series."""
+    conn = _get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        if series_id is not None:
+            cursor.execute(
+                '''SELECT
+                     fms.id, fms.cricapi_match_id, fms.match_name, fms.short_name,
+                     fms.match_date, fms.match_datetime_gmt, fms.venue,
+                     fms.status, fms.status_note, fms.live_score, fms.squad_fetched, fms.playing_xi_announced,
+                     t1.short_name AS team1_short, t1.full_name AS team1_name, t1.primary_color AS team1_color,
+                     t2.short_name AS team2_short, t2.full_name AS team2_name, t2.primary_color AS team2_color
+                   FROM fantasy_match_schedule fms
+                   LEFT JOIN fantasy_ipl_teams t1 ON fms.team1_id = t1.id
+                   LEFT JOIN fantasy_ipl_teams t2 ON fms.team2_id = t2.id
+                   WHERE fms.series_id = %s
+                   ORDER BY fms.match_datetime_gmt ASC, fms.match_date ASC''',
+                (series_id,)
+            )
+        else:
+            cursor.execute(
+                '''SELECT
+                     fms.id, fms.cricapi_match_id, fms.match_name, fms.short_name,
+                     fms.match_date, fms.match_datetime_gmt, fms.venue,
+                     fms.status, fms.status_note, fms.live_score, fms.squad_fetched, fms.playing_xi_announced,
+                     t1.short_name AS team1_short, t1.full_name AS team1_name, t1.primary_color AS team1_color,
+                     t2.short_name AS team2_short, t2.full_name AS team2_name, t2.primary_color AS team2_color
+                   FROM fantasy_match_schedule fms
+                   LEFT JOIN fantasy_ipl_teams t1 ON fms.team1_id = t1.id
+                   LEFT JOIN fantasy_ipl_teams t2 ON fms.team2_id = t2.id
+                   ORDER BY fms.match_datetime_gmt ASC, fms.match_date ASC'''
+            )
         matches = []
         for row in cursor.fetchall():
             matches.append({
@@ -356,12 +433,23 @@ async def submit_team(
     try:
         # Check match exists and is not locked/started
         cursor.execute(
-            'SELECT id, match_datetime_gmt, status FROM fantasy_match_schedule WHERE id = %s',
+            'SELECT id, series_id, match_datetime_gmt, status FROM fantasy_match_schedule WHERE id = %s',
             (match_id,)
         )
         match = cursor.fetchone()
         if not match:
             raise HTTPException(status_code=404, detail='Match not found')
+
+        # Series access check — user must have a row in fantasy_series_access for this series
+        cursor.execute(
+            'SELECT 1 FROM fantasy_series_access WHERE user_id = %s AND series_id = %s',
+            (user_id, match['series_id'])
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=403,
+                detail='You are not allowed to participate in this series'
+            )
 
         # Deadline check: match_datetime_gmt is stored as naive UTC
         if match['match_datetime_gmt']:
@@ -774,8 +862,282 @@ async def get_match_player_scores(match_id: int):
 
 
 # ============================================================================
+# OVERALL FANTASY LEADERBOARD
+# ============================================================================
+
+@fantasy_router.get('/leaderboard')
+async def get_overall_fantasy_leaderboard(
+    authorization: Optional[str] = Header(None),
+    series_id: Optional[int] = Query(None, description='Scope leaderboard to a specific series'),
+):
+    """
+    Overall fantasy leaderboard aggregated across completed matches.
+    Optionally scoped to a series via ?series_id=.
+    Applies F1-style points to each user's finishing rank per match:
+      P1=25, P2=18, P3=15, P4=12, P5=10, P6=8, P7=6, P8=4, P9=2, P10=1, rest=0
+    """
+    current_user_id = None
+    if authorization:
+        try:
+            from app import get_current_user
+            user = await get_current_user(authorization)
+            current_user_id = user['user_id']
+        except Exception:
+            pass
+
+    conn = _get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        series_filter = 'AND fms.series_id = %(series_id)s' if series_id is not None else ''
+        params = {'series_id': series_id} if series_id is not None else {}
+        cursor.execute(f"""
+            SELECT
+                u.id AS user_id,
+                u.display_name,
+                u.profile_picture,
+                SUM(
+                    CASE fml.rank
+                        WHEN 1  THEN 25
+                        WHEN 2  THEN 18
+                        WHEN 3  THEN 15
+                        WHEN 4  THEN 12
+                        WHEN 5  THEN 10
+                        WHEN 6  THEN 8
+                        WHEN 7  THEN 6
+                        WHEN 8  THEN 4
+                        WHEN 9  THEN 2
+                        WHEN 10 THEN 1
+                        ELSE 0
+                    END
+                ) AS total_points,
+                COUNT(fml.id) AS matches_played,
+                MIN(fml.rank) AS best_rank,
+                ROUND(
+                    SUM(
+                        CASE fml.rank
+                            WHEN 1  THEN 25
+                            WHEN 2  THEN 18
+                            WHEN 3  THEN 15
+                            WHEN 4  THEN 12
+                            WHEN 5  THEN 10
+                            WHEN 6  THEN 8
+                            WHEN 7  THEN 6
+                            WHEN 8  THEN 4
+                            WHEN 9  THEN 2
+                            WHEN 10 THEN 1
+                            ELSE 0
+                        END
+                    ) / COUNT(fml.id), 1
+                ) AS average_points
+            FROM users u
+            INNER JOIN fantasy_match_leaderboard fml ON fml.user_id = u.id
+            INNER JOIN fantasy_match_schedule fms ON fms.id = fml.match_id
+                AND fms.status = 'completed'
+                {series_filter}
+            GROUP BY u.id, u.display_name, u.profile_picture
+            ORDER BY total_points DESC, best_rank ASC, u.display_name ASC
+        """, params)
+
+        rows = cursor.fetchall()
+
+        def _pic(row):
+            pp = row.get('profile_picture')
+            if pp is None:
+                return None
+            return pp.decode('utf-8') if isinstance(pp, bytes) else pp
+
+        leaderboard = [
+            {
+                'user_id': row['user_id'],
+                'display_name': row['display_name'],
+                'profilePicture': _pic(row),
+                'total_points': int(row['total_points']),
+                'matches_played': int(row['matches_played']),
+                'average_points': float(row['average_points']),
+                'best_rank': int(row['best_rank']) if row['best_rank'] else None,
+                'is_current_user': row['user_id'] == current_user_id,
+            }
+            for row in rows
+        ]
+        return {'leaderboard': leaderboard}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@fantasy_router.get('/players/{user_id}/matches')
+async def get_fantasy_player_matches(
+    user_id: int,
+    series_id: Optional[int] = Query(None, description='Scope match history to a specific series'),
+):
+    """
+    Fantasy match history for a specific user across completed matches.
+    Optionally scoped to a series via ?series_id=.
+    """
+    conn = _get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        series_filter = 'AND fms.series_id = %(series_id)s' if series_id is not None else ''
+        params = {'user_id': user_id, 'series_id': series_id} if series_id is not None else {'user_id': user_id}
+        cursor.execute(f"""
+            SELECT
+                fms.id          AS match_id,
+                fms.match_name,
+                fms.short_name,
+                fms.match_date,
+                fml.rank,
+                fml.total_points AS fantasy_points,
+                CASE fml.rank
+                    WHEN 1  THEN 25
+                    WHEN 2  THEN 18
+                    WHEN 3  THEN 15
+                    WHEN 4  THEN 12
+                    WHEN 5  THEN 10
+                    WHEN 6  THEN 8
+                    WHEN 7  THEN 6
+                    WHEN 8  THEN 4
+                    WHEN 9  THEN 2
+                    WHEN 10 THEN 1
+                    ELSE 0
+                END AS points_earned
+            FROM fantasy_match_leaderboard fml
+            INNER JOIN fantasy_match_schedule fms ON fms.id = fml.match_id
+                AND fms.status = 'completed'
+                {series_filter}
+            WHERE fml.user_id = %(user_id)s
+            ORDER BY fms.match_date DESC, fms.id DESC
+        """, params)
+
+        rows = cursor.fetchall()
+        matches = [
+            {
+                'match_id': r['match_id'],
+                'match_name': r['match_name'],
+                'short_name': r['short_name'],
+                'match_date': r['match_date'].isoformat() if r['match_date'] else None,
+                'rank': int(r['rank']),
+                'fantasy_points': float(r['fantasy_points']),
+                'points_earned': int(r['points_earned']),
+            }
+            for r in rows
+        ]
+        return {'matches': matches}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ============================================================================
 # ADMIN ENDPOINTS
 # ============================================================================
+
+@fantasy_router.get('/admin/series')
+async def admin_get_series(
+    authorization: Optional[str] = Header(None)
+):
+    """Admin: List all series with match counts."""
+    from app import verify_admin
+    await verify_admin(authorization)
+
+    conn = _get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            '''SELECT fs.id, fs.name, fs.cricapi_series_id, fs.is_active, fs.created_at,
+                      COUNT(fms.id) AS match_count
+               FROM fantasy_series fs
+               LEFT JOIN fantasy_match_schedule fms ON fms.series_id = fs.id
+               GROUP BY fs.id, fs.name, fs.cricapi_series_id, fs.is_active, fs.created_at
+               ORDER BY fs.id ASC'''
+        )
+        series = [
+            {
+                'id': r['id'],
+                'name': r['name'],
+                'cricapi_series_id': r['cricapi_series_id'],
+                'is_active': bool(r['is_active']),
+                'match_count': int(r['match_count']),
+                'created_at': r['created_at'].isoformat() if r['created_at'] else None,
+            }
+            for r in cursor.fetchall()
+        ]
+        return {'series': series}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@fantasy_router.post('/admin/series')
+async def admin_create_series(
+    request: SeriesCreate,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin: Create a new series."""
+    from app import verify_admin
+    await verify_admin(authorization)
+
+    conn = _get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'INSERT INTO fantasy_series (name, cricapi_series_id) VALUES (%s, %s)',
+            (request.name.strip(), request.cricapi_series_id.strip())
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+        return {'id': new_id, 'message': f'Series "{request.name}" created successfully'}
+    except Exception as e:
+        conn.rollback()
+        if 'Duplicate' in str(e):
+            raise HTTPException(status_code=409, detail='A series with that CricAPI series ID already exists')
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@fantasy_router.put('/admin/series/{series_id}')
+async def admin_update_series(
+    series_id: int,
+    request: SeriesUpdate,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin: Update series name or active status."""
+    from app import verify_admin
+    await verify_admin(authorization)
+
+    fields, values = [], []
+    if request.name is not None:
+        fields.append('name = %s')
+        values.append(request.name.strip())
+    if request.is_active is not None:
+        fields.append('is_active = %s')
+        values.append(1 if request.is_active else 0)
+
+    if not fields:
+        raise HTTPException(status_code=400, detail='No fields to update')
+
+    conn = _get_db()
+    cursor = conn.cursor()
+    try:
+        values.append(series_id)
+        cursor.execute(
+            f'UPDATE fantasy_series SET {", ".join(fields)} WHERE id = %s',
+            values
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail='Series not found')
+        conn.commit()
+        return {'message': 'Series updated successfully'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @fantasy_router.get('/admin/players')
 async def admin_get_players(

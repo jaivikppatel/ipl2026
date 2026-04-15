@@ -2,14 +2,19 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import FantasyService from './services/FantasyService'
+import FantasyOverallLeaderboard from './FantasyOverallLeaderboard'
 import BottomNav from './BottomNav'
 import './Fantasy.css'
 
 function Fantasy() {
+  const [activeTab, setActiveTab] = useState('matches')
+  const [series, setSeries] = useState([])          // all active series
+  const [selectedSeriesId, setSelectedSeriesId] = useState(null)
   const [matches, setMatches] = useState([])
   const [myTeams, setMyTeams] = useState({}) // matchId -> team or null
   const [loading, setLoading] = useState(true)
   const [showRules, setShowRules] = useState(false)
+  const [accessDeniedModal, setAccessDeniedModal] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -17,13 +22,35 @@ function Fantasy() {
       navigate('/login')
       return
     }
-    loadMatches()
+    // Load series list — the selectedSeriesId effect will trigger loadMatches
+    FantasyService.getSeries()
+      .then(data => {
+        const list = data.series || []
+        setSeries(list)
+        const firstId = list.length > 0 ? list[0].id : null
+        setSelectedSeriesId(firstId)
+        // If no series, still load all matches (firstId = null)
+        if (firstId === null) {
+          loadMatches(null)
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load series:', err)
+        loadMatches(null)
+      })
   }, [])
 
-  const loadMatches = async () => {
+  useEffect(() => {
+    // Load matches whenever series selection changes (also fires on initial non-null set)
+    if (selectedSeriesId !== null) {
+      loadMatches(selectedSeriesId)
+    }
+  }, [selectedSeriesId])
+
+  const loadMatches = async (seriesId) => {
     setLoading(true)
     try {
-      const data = await FantasyService.getMatches()
+      const data = await FantasyService.getMatches(seriesId)
       const matchList = data.matches || []
       setMatches(matchList)
 
@@ -82,8 +109,12 @@ function Fantasy() {
     const hasTeam = !!team
     const isLocked = team?.is_locked
     const deadlinePassed = match.match_datetime_gmt && new Date() >= new Date(match.match_datetime_gmt + 'Z')
+    // Check access for the current series
+    const currentSeries = series.find(s => s.id === selectedSeriesId)
+    const hasAccess = currentSeries?.user_has_access ?? false
     const canEdit = hasTeam && !isLocked && !deadlinePassed && match.status === 'upcoming'
-    const canCreate = !hasTeam && !deadlinePassed && match.status === 'upcoming'
+    const canCreate = !hasTeam && !deadlinePassed && match.status === 'upcoming' && hasAccess
+    const canCreateLocked = !hasTeam && !deadlinePassed && match.status === 'upcoming' && !hasAccess
     const isLive = match.status === 'live'
     const isCompleted = match.status === 'completed'
 
@@ -158,6 +189,14 @@ function Fantasy() {
               🏏 Create Team
             </button>
           )}
+          {canCreateLocked && (
+            <button
+              className="action-btn create-btn locked-btn"
+              onClick={() => setAccessDeniedModal(true)}
+            >
+              🔒 Create Team
+            </button>
+          )}
           {canEdit && (
             <button
               className="action-btn edit-btn"
@@ -182,12 +221,20 @@ function Fantasy() {
               My Points
             </button>
           )}
-          {isLive && !hasTeam && !deadlinePassed && (
+          {isLive && !hasTeam && !deadlinePassed && hasAccess && (
             <button
               className="action-btn create-btn"
               onClick={() => navigate(`/fantasy/match/${match.id}`)}
             >
               🏏 Join Live
+            </button>
+          )}
+          {isLive && !hasTeam && !deadlinePassed && !hasAccess && (
+            <button
+              className="action-btn create-btn locked-btn"
+              onClick={() => setAccessDeniedModal(true)}
+            >
+              🔒 Join Live
             </button>
           )}
         </div>
@@ -199,13 +246,46 @@ function Fantasy() {
     <div className="fantasy-container">
       <div className="fantasy-header">
         <div className="fantasy-header-top">
-          <h1>🏏 Fantasy IPL 2026</h1>
+          <h1>🏏 Fantasy Cricket</h1>
           <button className="rules-btn" onClick={() => setShowRules(true)}>ℹ️ Rules</button>
         </div>
         <p className="fantasy-subtitle">Pick your dream team & beat your friends</p>
       </div>
 
-      {loading ? (
+      {/* Series tabs — only shown when there are 2+ series */}
+      {series.length > 1 && (
+        <div className="series-tabs">
+          {series.map(s => (
+            <button
+              key={s.id}
+              className={`series-tab${s.id === selectedSeriesId ? ' active' : ''}`}
+              onClick={() => setSelectedSeriesId(s.id)}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Subtabs */}
+      <div className="fantasy-subtabs">
+        <button
+          className={`fantasy-subtab${activeTab === 'leaderboard' ? ' active' : ''}`}
+          onClick={() => setActiveTab('leaderboard')}
+        >
+          🏆 Leaderboard
+        </button>
+        <button
+          className={`fantasy-subtab${activeTab === 'matches' ? ' active' : ''}`}
+          onClick={() => setActiveTab('matches')}
+        >
+          🏏 Matches
+        </button>
+      </div>
+
+      {activeTab === 'leaderboard' ? (
+        <FantasyOverallLeaderboard seriesId={selectedSeriesId} />
+      ) : loading ? (
         <div className="fantasy-loading">
           <div className="spinner" />
           <p>Loading matches...</p>
@@ -246,6 +326,18 @@ function Fantasy() {
       )}
 
       <BottomNav />
+
+      {/* Access denied modal */}
+      {accessDeniedModal && (
+        <div className="access-denied-overlay" onClick={() => setAccessDeniedModal(false)}>
+          <div className="access-denied-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="access-denied-icon">🔒</div>
+            <h3>Access Restricted</h3>
+            <p>You are not allowed to participate in this series. Please contact an admin.</p>
+            <button className="access-denied-ok" onClick={() => setAccessDeniedModal(false)}>Got it</button>
+          </div>
+        </div>
+      )}
 
       {showRules && (
         <div className="rules-overlay" onClick={() => setShowRules(false)}>

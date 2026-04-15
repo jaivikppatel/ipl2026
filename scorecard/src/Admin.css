@@ -253,6 +253,117 @@
   transform: translateY(-1px);
 }
 
+/* ── Series Management ───────────────────────────────── */
+.series-mgmt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.series-mgmt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px 14px;
+  gap: 12px;
+}
+
+.series-mgmt-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.series-mgmt-name {
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.series-mgmt-id {
+  color: #888;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.series-mgmt-count {
+  color: #aaa;
+  font-size: 0.75rem;
+}
+
+.series-active-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.series-active-badge.active {
+  background: rgba(72, 187, 120, 0.2);
+  color: #68d391;
+  border: 1px solid rgba(72, 187, 120, 0.3);
+}
+
+.series-active-badge.inactive {
+  background: rgba(160, 160, 160, 0.12);
+  color: #888;
+  border: 1px solid rgba(160, 160, 160, 0.2);
+}
+
+.series-toggle-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #ccc;
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.series-toggle-btn:hover {
+  background: rgba(255,255,255,0.14);
+  color: #fff;
+}
+
+.series-add-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.series-input {
+  flex: 1;
+  min-width: 160px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.series-input::placeholder {
+  color: #666;
+}
+
+.series-input:focus {
+  outline: none;
+  border-color: rgba(236, 0, 140, 0.5);
+}
+
+
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;

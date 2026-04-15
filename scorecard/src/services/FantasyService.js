@@ -14,8 +14,14 @@ async function handleResponse(res) {
 }
 
 const FantasyService = {
-  async getMatches() {
-    const res = await fetch(`${API_BASE}/matches`, { headers: getAuthHeader() })
+  async getSeries() {
+    const res = await fetch(`${API_BASE}/series`, { headers: getAuthHeader() })
+    return handleResponse(res)
+  },
+
+  async getMatches(seriesId = null) {
+    const url = seriesId != null ? `${API_BASE}/matches?series_id=${seriesId}` : `${API_BASE}/matches`
+    const res = await fetch(url, { headers: getAuthHeader() })
     return handleResponse(res)
   },
 
@@ -58,7 +64,43 @@ const FantasyService = {
     return handleResponse(res)
   },
 
+  async getFantasyOverallLeaderboard(seriesId = null) {
+    const url = seriesId != null ? `${API_BASE}/leaderboard?series_id=${seriesId}` : `${API_BASE}/leaderboard`
+    const res = await fetch(url, { headers: getAuthHeader() })
+    return handleResponse(res)
+  },
+
+  async getFantasyPlayerMatches(userId, seriesId = null) {
+    const url = seriesId != null
+      ? `${API_BASE}/players/${userId}/matches?series_id=${seriesId}`
+      : `${API_BASE}/players/${userId}/matches`
+    const res = await fetch(url, { headers: getAuthHeader() })
+    return handleResponse(res)
+  },
+
   // Admin
+  async adminGetSeries() {
+    const res = await fetch(`${API_BASE}/admin/series`, { headers: getAuthHeader() })
+    return handleResponse(res)
+  },
+
+  async adminCreateSeries(data) {
+    const res = await fetch(`${API_BASE}/admin/series`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+  },
+
+  async adminUpdateSeries(id, data) {
+    const res = await fetch(`${API_BASE}/admin/series/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(data),
+    })
+    return handleResponse(res)
+  },
   async adminGetPlayers() {
     const res = await fetch(`${API_BASE}/admin/players`, { headers: getAuthHeader() })
     return handleResponse(res)
