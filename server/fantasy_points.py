@@ -33,17 +33,17 @@ def calculate_player_points(stats: dict) -> float:
         duck = stats.get('is_duck', False)
 
         # Base run points
-        points += runs * 0.5
+        points += runs * 1
 
         # Boundary bonuses
         points += fours * 1
-        points += sixes * 2
+        points += sixes * 3
 
         # Milestone bonuses
         if runs >= 100:
-            points += 16
+            points += 20
         elif runs >= 50:
-            points += 8
+            points += 10
         elif runs >= 30:
             points += 4
 

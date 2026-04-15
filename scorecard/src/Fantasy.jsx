@@ -262,12 +262,12 @@ function Fantasy() {
               <h3 className="rules-section-title">🏏 Batting</h3>
               <table className="rules-table">
                 <tbody>
-                  <tr><td>Run scored</td><td className="pts-pos">+0.5 / run</td></tr>
+                  <tr><td>Run scored</td><td className="pts-pos">+1 / run</td></tr>
                   <tr><td>Four bonus</td><td className="pts-pos">+1 / four</td></tr>
-                  <tr><td>Six bonus</td><td className="pts-pos">+2 / six</td></tr>
+                  <tr><td>Six bonus</td><td className="pts-pos">+3 / six</td></tr>
                   <tr><td>30+ runs milestone</td><td className="pts-pos">+4</td></tr>
-                  <tr><td>50+ runs milestone</td><td className="pts-pos">+8</td></tr>
-                  <tr><td>100+ runs milestone</td><td className="pts-pos">+16</td></tr>
+                  <tr><td>50+ runs milestone</td><td className="pts-pos">+10</td></tr>
+                  <tr><td>100+ runs milestone</td><td className="pts-pos">+20</td></tr>
                   <tr><td>Duck (dismissed for 0)</td><td className="pts-neg">−2</td></tr>
                   <tr><td colSpan={2} className="rules-subheading">Strike Rate (min 10 balls)</td></tr>
                   <tr><td>SR &gt; 170</td><td className="pts-pos">+6</td></tr>
