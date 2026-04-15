@@ -557,15 +557,20 @@ async def get_user_team(
         players = cursor.fetchall()
 
         player_ids = [p['player_id'] for p in players]
-        points_map = {}
+        stats_map = {}  # player_id -> full stats row
         if player_ids:
             placeholders = ','.join(['%s'] * len(player_ids))
             cursor.execute(
-                f'SELECT player_id, fantasy_points FROM fantasy_player_match_stats WHERE match_id = %s AND player_id IN ({placeholders})',
+                f'''SELECT player_id, fantasy_points,
+                           runs_scored, balls_faced, fours, sixes, is_dismissed, is_duck,
+                           wickets, balls_bowled, runs_conceded, maidens,
+                           catches, stumpings, run_outs_direct, run_outs_indirect
+                    FROM fantasy_player_match_stats
+                    WHERE match_id = %s AND player_id IN ({placeholders})''',
                 [match_id] + player_ids
             )
             for row in cursor.fetchall():
-                points_map[row['player_id']] = float(row['fantasy_points'])
+                stats_map[row['player_id']] = row
 
         cursor.execute(
             'SELECT display_name FROM users WHERE id = %s',
@@ -585,11 +590,29 @@ async def get_user_team(
                     'team_color': p['primary_color'],
                     'is_captain': bool(p['is_captain']),
                     'is_vice_captain': bool(p['is_vice_captain']),
-                    'base_points': points_map.get(p['player_id'], 0),
+                    'base_points': float(stats_map[p['player_id']]['fantasy_points']) if p['player_id'] in stats_map else 0,
                     'total_points': round(
-                        points_map.get(p['player_id'], 0) * (2.0 if p['is_captain'] else 1.5 if p['is_vice_captain'] else 1.0),
+                        (float(stats_map[p['player_id']]['fantasy_points']) if p['player_id'] in stats_map else 0)
+                        * (2.0 if p['is_captain'] else 1.5 if p['is_vice_captain'] else 1.0),
                         2
                     ),
+                    'multiplier': 2.0 if p['is_captain'] else 1.5 if p['is_vice_captain'] else 1.0,
+                    'stats': {
+                        'runs': int(stats_map[p['player_id']]['runs_scored']) if p['player_id'] in stats_map else 0,
+                        'balls': int(stats_map[p['player_id']]['balls_faced']) if p['player_id'] in stats_map else 0,
+                        'fours': int(stats_map[p['player_id']]['fours']) if p['player_id'] in stats_map else 0,
+                        'sixes': int(stats_map[p['player_id']]['sixes']) if p['player_id'] in stats_map else 0,
+                        'wickets': int(stats_map[p['player_id']]['wickets']) if p['player_id'] in stats_map else 0,
+                        'catches': int(stats_map[p['player_id']]['catches']) if p['player_id'] in stats_map else 0,
+                        'stumpings': int(stats_map[p['player_id']]['stumpings']) if p['player_id'] in stats_map else 0,
+                        'balls_bowled': int(stats_map[p['player_id']]['balls_bowled']) if p['player_id'] in stats_map else 0,
+                        'runs_conceded': int(stats_map[p['player_id']]['runs_conceded']) if p['player_id'] in stats_map else 0,
+                        'maidens': int(stats_map[p['player_id']]['maidens']) if p['player_id'] in stats_map else 0,
+                        'run_outs_direct': int(stats_map[p['player_id']]['run_outs_direct']) if p['player_id'] in stats_map else 0,
+                        'run_outs_indirect': int(stats_map[p['player_id']]['run_outs_indirect']) if p['player_id'] in stats_map else 0,
+                        'is_dismissed': bool(stats_map[p['player_id']]['is_dismissed']) if p['player_id'] in stats_map else False,
+                        'duck': bool(stats_map[p['player_id']]['is_duck']) if p['player_id'] in stats_map else False,
+                    } if p['player_id'] in stats_map else None,
                 }
                 for p in players
             ],
@@ -668,6 +691,76 @@ async def get_match_points_breakdown(
                 'total_points': round(base * multiplier, 2),
             })
         return {'breakdown': breakdown}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@fantasy_router.get('/matches/{match_id}/player-scores')
+async def get_match_player_scores(match_id: int):
+    """Get all players who scored points in a match, sorted by points desc."""
+    conn = _get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            '''SELECT fms.id, fms.match_name, fms.status
+               FROM fantasy_match_schedule fms
+               WHERE fms.id = %s''',
+            (match_id,)
+        )
+        match = cursor.fetchone()
+        if not match:
+            raise HTTPException(status_code=404, detail='Match not found')
+
+        cursor.execute(
+            '''SELECT
+                 fpms.player_id,
+                 p.name,
+                 p.role,
+                 t.short_name AS team_short,
+                 t.primary_color AS team_color,
+                 COALESCE(fpms.runs_scored, 0) AS runs_scored,
+                 COALESCE(fpms.balls_faced, 0) AS balls_faced,
+                 COALESCE(fpms.fours, 0) AS fours,
+                 COALESCE(fpms.sixes, 0) AS sixes,
+                 COALESCE(fpms.wickets, 0) AS wickets,
+                 COALESCE(fpms.catches, 0) AS catches,
+                 COALESCE(fpms.stumpings, 0) AS stumpings,
+                 COALESCE(fpms.fantasy_points, 0) AS base_points
+               FROM fantasy_player_match_stats fpms
+               JOIN fantasy_ipl_players p ON fpms.player_id = p.id
+               JOIN fantasy_ipl_teams t ON p.team_id = t.id
+               WHERE fpms.match_id = %s AND fpms.fantasy_points > 0
+               ORDER BY fpms.fantasy_points DESC''',
+            (match_id,)
+        )
+        players = []
+        for r in cursor.fetchall():
+            players.append({
+                'player_id': r['player_id'],
+                'name': r['name'],
+                'role': r['role'],
+                'team_short': r['team_short'],
+                'team_color': r['team_color'],
+                'stats': {
+                    'runs': int(r['runs_scored']),
+                    'balls': int(r['balls_faced']),
+                    'fours': int(r['fours']),
+                    'sixes': int(r['sixes']),
+                    'wickets': int(r['wickets']),
+                    'catches': int(r['catches']),
+                    'stumpings': int(r['stumpings']),
+                },
+                'base_points': float(r['base_points']),
+            })
+        return {
+            'players': players,
+            'match': {
+                'id': match['id'],
+                'name': match['match_name'],
+                'status': match['status'],
+            },
+        }
     finally:
         cursor.close()
         conn.close()

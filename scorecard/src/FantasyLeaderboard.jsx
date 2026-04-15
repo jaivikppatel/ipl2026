@@ -4,6 +4,86 @@ import AuthService from './services/AuthService'
 import FantasyService from './services/FantasyService'
 import './FantasyLeaderboard.css'
 
+/**
+ * Reconstruct a per-line breakdown of how base_points were earned.
+ * Mirrors fantasy_points.py calculate_player_points().
+ * stats shape: { runs, balls, fours, sixes, wickets, catches, stumpings }
+ * Additional bowling stats may come from the player-scores endpoint:
+ *   { balls_bowled, runs_conceded, maidens }
+ * Returns an array of { label, points } — only non-zero items — plus
+ * a summary row for the multiplier if C or VC.
+ */
+function getPointBreakdown(stats, isCapt, isVc) {
+  if (!stats) return []
+  const lines = []
+
+  // ── Batting ──────────────────────────────────────────
+  const runs = stats.runs ?? stats.runs_scored ?? 0
+  const balls = stats.balls ?? stats.balls_faced ?? 0
+  const fours = stats.fours ?? 0
+  const sixes = stats.sixes ?? 0
+
+  if (runs > 0) lines.push({ label: `${runs} run${runs !== 1 ? 's' : ''}`, points: runs * 0.5 })
+  if (fours > 0) lines.push({ label: `${fours} four${fours !== 1 ? 's' : ''} (bonus)`, points: fours * 1 })
+  if (sixes > 0) lines.push({ label: `${sixes} six${sixes !== 1 ? 'es' : ''} (bonus)`, points: sixes * 2 })
+
+  if (runs >= 100) lines.push({ label: '100+ runs milestone', points: 16 })
+  else if (runs >= 50) lines.push({ label: '50+ runs milestone', points: 8 })
+  else if (runs >= 30) lines.push({ label: '30+ runs milestone', points: 4 })
+
+  // Duck penalty: we detect from stats — runs=0 and dismissed (stats.is_dismissed or stats.duck)
+  if (runs === 0 && (stats.is_dismissed || stats.duck)) {
+    lines.push({ label: 'Duck', points: -2 })
+  }
+
+  // Strike rate (min 10 balls)
+  if (balls >= 10) {
+    const sr = (runs / balls) * 100
+    if (sr > 170) lines.push({ label: `SR ${sr.toFixed(1)} (>170)`, points: 6 })
+    else if (sr >= 150) lines.push({ label: `SR ${sr.toFixed(1)} (150–170)`, points: 4 })
+    else if (sr >= 130) lines.push({ label: `SR ${sr.toFixed(1)} (130–150)`, points: 2 })
+    else if (sr < 50) lines.push({ label: `SR ${sr.toFixed(1)} (<50)`, points: -6 })
+    else if (sr < 70) lines.push({ label: `SR ${sr.toFixed(1)} (50–70)`, points: -4 })
+    else if (sr < 100) lines.push({ label: `SR ${sr.toFixed(1)} (70–100)`, points: -2 })
+  }
+
+  // ── Bowling ───────────────────────────────────────────
+  const wickets = stats.wickets ?? 0
+  const ballsBowled = stats.balls_bowled ?? 0
+  const runsConceded = stats.runs_conceded ?? 0
+  const maidens = stats.maidens ?? 0
+
+  if (wickets > 0) lines.push({ label: `${wickets} wicket${wickets !== 1 ? 's' : ''}`, points: wickets * 25 })
+  if (wickets >= 5) lines.push({ label: '5-wicket haul bonus', points: 16 })
+  else if (wickets >= 4) lines.push({ label: '4-wicket haul bonus', points: 8 })
+  else if (wickets >= 3) lines.push({ label: '3-wicket haul bonus', points: 4 })
+  if (maidens > 0) lines.push({ label: `${maidens} maiden${maidens !== 1 ? 's' : ''}`, points: maidens * 12 })
+
+  if (ballsBowled >= 12) {
+    const overs = ballsBowled / 6
+    const econ = runsConceded / overs
+    if (econ <= 5) lines.push({ label: `Economy ${econ.toFixed(2)} (≤5)`, points: 6 })
+    else if (econ <= 6) lines.push({ label: `Economy ${econ.toFixed(2)} (≤6)`, points: 4 })
+    else if (econ <= 7) lines.push({ label: `Economy ${econ.toFixed(2)} (≤7)`, points: 2 })
+    else if (econ >= 12) lines.push({ label: `Economy ${econ.toFixed(2)} (≥12)`, points: -6 })
+    else if (econ >= 11) lines.push({ label: `Economy ${econ.toFixed(2)} (≥11)`, points: -4 })
+    else if (econ >= 10) lines.push({ label: `Economy ${econ.toFixed(2)} (≥10)`, points: -2 })
+  }
+
+  // ── Fielding ──────────────────────────────────────────
+  const catches = stats.catches ?? 0
+  const stumpings = stats.stumpings ?? 0
+  const runOutsDirect = stats.run_outs_direct ?? 0
+  const runOutsIndirect = stats.run_outs_indirect ?? 0
+
+  if (catches > 0) lines.push({ label: `${catches} catch${catches !== 1 ? 'es' : ''}`, points: catches * 8 })
+  if (stumpings > 0) lines.push({ label: `${stumpings} stumping${stumpings !== 1 ? 's' : ''}`, points: stumpings * 12 })
+  if (runOutsDirect > 0) lines.push({ label: `${runOutsDirect} direct run-out${runOutsDirect !== 1 ? 's' : ''}`, points: runOutsDirect * 12 })
+  if (runOutsIndirect > 0) lines.push({ label: `${runOutsIndirect} indirect run-out${runOutsIndirect !== 1 ? 's' : ''}`, points: runOutsIndirect * 6 })
+
+  return lines
+}
+
 function FantasyLeaderboard() {
   const { matchId } = useParams()
   const navigate = useNavigate()
@@ -14,6 +94,8 @@ function FantasyLeaderboard() {
   const [loading, setLoading] = useState(true)
   const [viewingTeam, setViewingTeam] = useState(null)   // { display_name, players }
   const [teamModalLoading, setTeamModalLoading] = useState(false)
+  const [selectedPlayer, setSelectedPlayer] = useState(null) // player for breakdown modal
+  const [playerScores, setPlayerScores] = useState([])       // match-level player scores
   const currentUserId = AuthService.getUser()?.id
 
   useEffect(() => {
@@ -28,9 +110,20 @@ function FantasyLeaderboard() {
         FantasyService.getMatchLeaderboard(matchId),
         FantasyService.getPointsBreakdown(matchId),
       ])
+      const matchData = lbData.match || null
       setLeaderboard(lbData.leaderboard || [])
-      setMatch(lbData.match || null)
+      setMatch(matchData)
       setMyBreakdown(pointsData.breakdown || [])
+
+      // Load player scores for live/completed matches
+      if (matchData?.status === 'live' || matchData?.status === 'completed') {
+        try {
+          const scoresData = await FantasyService.getMatchPlayerScores(matchId)
+          setPlayerScores(scoresData.players || [])
+        } catch (_) {
+          // non-fatal
+        }
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -120,6 +213,14 @@ function FantasyLeaderboard() {
             📊 My Points
           </button>
         )}
+        {(match?.status === 'live' || match?.status === 'completed') && (
+          <button
+            className={`fl-tab ${activeTab === 'scores' ? 'active' : ''}`}
+            onClick={() => setActiveTab('scores')}
+          >
+            🏏 Scores
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -188,7 +289,11 @@ function FantasyLeaderboard() {
                   {[...myBreakdown]
                     .sort((a, b) => b.total_points - a.total_points)
                     .map(p => (
-                      <div key={p.player_id} className={`mp-card ${p.is_captain ? 'mp-captain' : p.is_vice_captain ? 'mp-vc' : ''}`}>
+                      <div
+                        key={p.player_id}
+                        className={`mp-card clickable-player ${p.is_captain ? 'mp-captain' : p.is_vice_captain ? 'mp-vc' : ''}`}
+                        onClick={() => setSelectedPlayer(p)}
+                      >
                         <div className="mp-left">
                           {p.is_captain && <span className="mp-badge mp-badge-c">C</span>}
                           {p.is_vice_captain && <span className="mp-badge mp-badge-vc">VC</span>}
@@ -218,6 +323,39 @@ function FantasyLeaderboard() {
               )}
             </div>
           )}
+
+          {activeTab === 'scores' && (
+            <div className="scores-list">
+              {playerScores.length === 0 ? (
+                <div className="fl-empty">
+                  <div className="empty-icon">🏏</div>
+                  <p>No player scores yet</p>
+                </div>
+              ) : (
+                playerScores.map(p => (
+                  <div
+                    key={p.player_id}
+                    className="scores-row clickable-player"
+                    onClick={() => setSelectedPlayer({ ...p, multiplier: 1.0, total_points: p.base_points, is_captain: false, is_vice_captain: false })}
+                  >
+                    <div
+                      className="scores-avatar"
+                      style={{ background: p.team_color || '#333' }}
+                    >
+                      {p.name.split(' ').pop()[0]}
+                    </div>
+                    <div className="scores-info">
+                      <div className="scores-name">{p.name}</div>
+                      <div className="scores-meta">
+                        {p.team_short} · <span className={`player-role-chip role-${p.role}`}>{p.role}</span>
+                      </div>
+                    </div>
+                    <div className="scores-pts">{p.base_points.toFixed(1)}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </>
       )}
 
@@ -239,7 +377,11 @@ function FantasyLeaderboard() {
                 {[...viewingTeam.players]
                   .sort((a, b) => b.total_points - a.total_points)
                   .map(p => (
-                    <div key={p.player_id} className={`mp-card ${p.is_captain ? 'mp-captain' : p.is_vice_captain ? 'mp-vc' : ''}`}>
+                    <div
+                      key={p.player_id}
+                      className={`mp-card clickable-player ${p.is_captain ? 'mp-captain' : p.is_vice_captain ? 'mp-vc' : ''}`}
+                      onClick={() => setSelectedPlayer(p)}
+                    >
                       <div className="mp-left">
                         {p.is_captain && <span className="mp-badge mp-badge-c">C</span>}
                         {p.is_vice_captain && <span className="mp-badge mp-badge-vc">VC</span>}
@@ -266,6 +408,67 @@ function FantasyLeaderboard() {
           </div>
         </div>
       )}
+      {/* Player Point Breakdown Modal */}
+      {selectedPlayer && (() => {
+        const lines = getPointBreakdown(
+          selectedPlayer.stats,
+          selectedPlayer.is_captain,
+          selectedPlayer.is_vice_captain
+        )
+        const base = selectedPlayer.base_points ?? 0
+        const multiplier = selectedPlayer.multiplier ?? (selectedPlayer.is_captain ? 2.0 : selectedPlayer.is_vice_captain ? 1.5 : 1.0)
+        const total = selectedPlayer.total_points ?? base * multiplier
+        const roleLabel = selectedPlayer.is_captain ? ' (C)' : selectedPlayer.is_vice_captain ? ' (VC)' : ''
+        return (
+          <div className="bd-overlay" onClick={() => setSelectedPlayer(null)}>
+            <div className="bd-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="bd-header">
+                <div>
+                  <div className="bd-player-name">{selectedPlayer.name}{roleLabel}</div>
+                  <div className="bd-player-meta">
+                    {selectedPlayer.team_short} · <span className={`player-role-chip role-${selectedPlayer.role}`}>{selectedPlayer.role}</span>
+                  </div>
+                </div>
+                <button className="bd-close-btn" onClick={() => setSelectedPlayer(null)}>✕</button>
+              </div>
+              <div className="bd-body">
+                {lines.length === 0 ? (
+                  <p className="bd-no-points">No points scored yet</p>
+                ) : (
+                  <table className="bd-table">
+                    <tbody>
+                      {lines.map((line, i) => (
+                        <tr key={i}>
+                          <td className="bd-label">{line.label}</td>
+                          <td className={`bd-pts ${line.points >= 0 ? 'pts-pos' : 'pts-neg'}`}>
+                            {line.points >= 0 ? '+' : ''}{line.points % 1 === 0 ? line.points : line.points.toFixed(1)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bd-base-row">
+                        <td>Base total</td>
+                        <td className="bd-pts">{base.toFixed(1)}</td>
+                      </tr>
+                      {multiplier !== 1.0 && (
+                        <tr className="bd-mult-row">
+                          <td>{selectedPlayer.is_captain ? '👑 Captain 2×' : '🥈 Vice-Captain 1.5×'}</td>
+                          <td className="bd-pts pts-pos">× {multiplier}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bd-total-row">
+                        <td>Total</td>
+                        <td className="bd-total-pts">{total.toFixed(1)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

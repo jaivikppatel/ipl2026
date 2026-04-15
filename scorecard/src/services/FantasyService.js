@@ -53,6 +53,11 @@ const FantasyService = {
     return handleResponse(res)
   },
 
+  async getMatchPlayerScores(matchId) {
+    const res = await fetch(`${API_BASE}/matches/${matchId}/player-scores`, { headers: getAuthHeader() })
+    return handleResponse(res)
+  },
+
   // Admin
   async adminGetPlayers() {
     const res = await fetch(`${API_BASE}/admin/players`, { headers: getAuthHeader() })

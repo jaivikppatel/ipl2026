@@ -9,6 +9,7 @@ function Fantasy() {
   const [matches, setMatches] = useState([])
   const [myTeams, setMyTeams] = useState({}) // matchId -> team or null
   const [loading, setLoading] = useState(true)
+  const [showRules, setShowRules] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -73,7 +74,7 @@ function Fantasy() {
   const groupedMatches = {
     live: matches.filter(m => m.status === 'live'),
     upcoming: matches.filter(m => m.status === 'upcoming').slice(0, 5),
-    completed: matches.filter(m => m.status === 'completed'),
+    completed: matches.filter(m => m.status === 'completed').reverse(),
   }
 
   const renderMatchCard = (match) => {
@@ -197,7 +198,10 @@ function Fantasy() {
   return (
     <div className="fantasy-container">
       <div className="fantasy-header">
-        <h1>🏏 Fantasy IPL 2026</h1>
+        <div className="fantasy-header-top">
+          <h1>🏏 Fantasy IPL 2026</h1>
+          <button className="rules-btn" onClick={() => setShowRules(true)}>ℹ️ Rules</button>
+        </div>
         <p className="fantasy-subtitle">Pick your dream team & beat your friends</p>
       </div>
 
@@ -242,6 +246,70 @@ function Fantasy() {
       )}
 
       <BottomNav />
+
+      {showRules && (
+        <div className="rules-overlay" onClick={() => setShowRules(false)}>
+          <div className="rules-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="rules-modal-header">
+              <h2>📋 Scoring Rules</h2>
+              <button className="rules-close-btn" onClick={() => setShowRules(false)}>✕</button>
+            </div>
+            <div className="rules-modal-body">
+              <p className="rules-multiplier-note">
+                🌟 <strong>Captain</strong> earns <strong>2×</strong> points &nbsp;|&nbsp; 🥈 <strong>Vice-Captain</strong> earns <strong>1.5×</strong> points
+              </p>
+
+              <h3 className="rules-section-title">🏏 Batting</h3>
+              <table className="rules-table">
+                <tbody>
+                  <tr><td>Run scored</td><td className="pts-pos">+0.5 / run</td></tr>
+                  <tr><td>Four bonus</td><td className="pts-pos">+1 / four</td></tr>
+                  <tr><td>Six bonus</td><td className="pts-pos">+2 / six</td></tr>
+                  <tr><td>30+ runs milestone</td><td className="pts-pos">+4</td></tr>
+                  <tr><td>50+ runs milestone</td><td className="pts-pos">+8</td></tr>
+                  <tr><td>100+ runs milestone</td><td className="pts-pos">+16</td></tr>
+                  <tr><td>Duck (dismissed for 0)</td><td className="pts-neg">−2</td></tr>
+                  <tr><td colSpan={2} className="rules-subheading">Strike Rate (min 10 balls)</td></tr>
+                  <tr><td>SR &gt; 170</td><td className="pts-pos">+6</td></tr>
+                  <tr><td>SR 150–170</td><td className="pts-pos">+4</td></tr>
+                  <tr><td>SR 130–150</td><td className="pts-pos">+2</td></tr>
+                  <tr><td>SR &lt; 50</td><td className="pts-neg">−6</td></tr>
+                  <tr><td>SR 50–70</td><td className="pts-neg">−4</td></tr>
+                  <tr><td>SR 70–100</td><td className="pts-neg">−2</td></tr>
+                </tbody>
+              </table>
+
+              <h3 className="rules-section-title">🎾 Bowling</h3>
+              <table className="rules-table">
+                <tbody>
+                  <tr><td>Wicket</td><td className="pts-pos">+25 / wicket</td></tr>
+                  <tr><td>3-wicket haul bonus</td><td className="pts-pos">+4</td></tr>
+                  <tr><td>4-wicket haul bonus</td><td className="pts-pos">+8</td></tr>
+                  <tr><td>5-wicket haul bonus</td><td className="pts-pos">+16</td></tr>
+                  <tr><td>Maiden over</td><td className="pts-pos">+12 / maiden</td></tr>
+                  <tr><td colSpan={2} className="rules-subheading">Economy Rate (min 2 overs)</td></tr>
+                  <tr><td>Economy ≤ 5</td><td className="pts-pos">+6</td></tr>
+                  <tr><td>Economy ≤ 6</td><td className="pts-pos">+4</td></tr>
+                  <tr><td>Economy ≤ 7</td><td className="pts-pos">+2</td></tr>
+                  <tr><td>Economy ≥ 10</td><td className="pts-neg">−2</td></tr>
+                  <tr><td>Economy ≥ 11</td><td className="pts-neg">−4</td></tr>
+                  <tr><td>Economy ≥ 12</td><td className="pts-neg">−6</td></tr>
+                </tbody>
+              </table>
+
+              <h3 className="rules-section-title">🧤 Fielding</h3>
+              <table className="rules-table">
+                <tbody>
+                  <tr><td>Catch</td><td className="pts-pos">+8 / catch</td></tr>
+                  <tr><td>Stumping</td><td className="pts-pos">+12 / stumping</td></tr>
+                  <tr><td>Direct run-out</td><td className="pts-pos">+12</td></tr>
+                  <tr><td>Indirect run-out</td><td className="pts-pos">+6</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
