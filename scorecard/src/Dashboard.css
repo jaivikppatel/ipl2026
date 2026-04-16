@@ -32,6 +32,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .logo-section svg {

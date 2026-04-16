@@ -24,6 +24,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .fantasy-header-logo svg {

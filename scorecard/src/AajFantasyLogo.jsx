@@ -6,6 +6,8 @@
  *  light    boolean              if true, FANTASY text is white (for gradient backgrounds)
  *  className  string
  */
+import { useId } from 'react'
+
 export default function AajFantasyLogo({ size = 'md', light = false, className = '' }) {
   const cfg = {
     sm: { w: 130, h: 52,  aajY: 28, aajFs: 29, lineY: 34, fantasyY: 49, fantasyFs: 17, ls: '1.5' },
@@ -13,9 +15,10 @@ export default function AajFantasyLogo({ size = 'md', light = false, className =
     lg: { w: 205, h: 82,  aajY: 44, aajFs: 46, lineY: 52, fantasyY: 76, fantasyFs: 27, ls: '2.5' },
   }[size]
 
-  const gradId  = `afg-${size}`
-  const lineId  = `afgl-${size}`
-  const glowId  = `afgw-${size}`
+  const uid     = useId().replace(/:/g, 'x')
+  const gradId  = `afg-${uid}`
+  const lineId  = `afgl-${uid}`
+  const glowId  = `afgw-${uid}`
 
   return (
     <svg
