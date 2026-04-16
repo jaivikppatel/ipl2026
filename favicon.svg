@@ -1,0 +1,53 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Pink → orange gradient for FANTASY text -->
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#ec008c"/>
+      <stop offset="100%" stop-color="#ff6b00"/>
+    </linearGradient>
+
+    <!-- Faded gradient for separator line -->
+    <linearGradient id="line" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#ec008c" stop-opacity="0"/>
+      <stop offset="30%"  stop-color="#ec008c" stop-opacity="0.9"/>
+      <stop offset="70%"  stop-color="#ff6b00" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ff6b00" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Pink glow for "आज" -->
+    <filter id="glow" x="-25%" y="-30%" width="150%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
+      <feFlood flood-color="#ec008c" flood-opacity="0.6" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="g"/>
+      <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Black rounded square background -->
+  <rect width="64" height="64" rx="12" fill="#0a0a0a"/>
+
+  <!-- "आज" — white with pink glow -->
+  <text
+    x="32" y="30"
+    text-anchor="middle"
+    font-family="'Segoe UI', 'Noto Sans Devanagari', Arial, sans-serif"
+    font-weight="900"
+    font-size="25"
+    fill="white"
+    filter="url(#glow)"
+  >आज</text>
+
+  <!-- Separator line -->
+  <line x1="5" y1="37" x2="59" y2="37" stroke="url(#line)" stroke-width="1.5"/>
+
+  <!-- "FANTASY" — pink→orange gradient -->
+  <text
+    x="32" y="52"
+    text-anchor="middle"
+    font-family="'Segoe UI', Arial, sans-serif"
+    font-weight="700"
+    font-size="12"
+    fill="url(#grad)"
+    letter-spacing="2"
+  >FANTASY</text>
+</svg>
