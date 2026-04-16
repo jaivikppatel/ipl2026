@@ -1,4 +1,5 @@
 const API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/fantasy`
+const PAYMENTS_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}`
 
 function getAuthHeader() {
   const token = localStorage.getItem('token')
@@ -146,6 +147,46 @@ const FantasyService = {
 
   async adminGetMatches() {
     const res = await fetch(`${API_BASE}/admin/matches`, { headers: getAuthHeader() })
+    return handleResponse(res)
+  },
+
+  // Payments
+  async createCheckoutSession(seriesId) {
+    const res = await fetch(`${PAYMENTS_BASE}/payments/series/${seriesId}/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    })
+    return handleResponse(res)
+  },
+
+  async acknowledgeWhitelist(seriesId) {
+    const res = await fetch(`${API_BASE}/series/${seriesId}/acknowledge-whitelist`, {
+      method: 'POST',
+      headers: getAuthHeader(),
+    })
+    return handleResponse(res)
+  },
+
+  // Admin — Series Access Management
+  async adminGetSeriesAccess(seriesId) {
+    const res = await fetch(`${API_BASE}/admin/series/${seriesId}/access`, { headers: getAuthHeader() })
+    return handleResponse(res)
+  },
+
+  async adminWhitelistUser(seriesId, identifier) {
+    const res = await fetch(`${API_BASE}/admin/series/${seriesId}/whitelist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ identifier }),
+    })
+    return handleResponse(res)
+  },
+
+  async adminRevokeAccess(seriesId, userId) {
+    const res = await fetch(`${API_BASE}/admin/series/${seriesId}/access/${userId}`, {
+      method: 'DELETE',
+      headers: getAuthHeader(),
+    })
     return handleResponse(res)
   },
 }

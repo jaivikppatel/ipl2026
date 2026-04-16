@@ -25,6 +25,7 @@ load_dotenv()
 
 # Fantasy module imports (after load_dotenv so env vars are available)
 from fantasy_routes import fantasy_router
+from stripe_routes import stripe_router
 from fantasy_scheduler import start_scheduler, stop_scheduler
 
 # Initialize FastAPI app
@@ -1950,6 +1951,9 @@ async def health_check():
 
 # Register fantasy routes
 app.include_router(fantasy_router)
+
+# Register stripe routes
+app.include_router(stripe_router)
 
 
 @app.on_event('startup')

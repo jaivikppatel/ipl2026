@@ -24,6 +24,14 @@ function Admin() {
   const [newSeriesName, setNewSeriesName] = useState('')
   const [newSeriesCricapiId, setNewSeriesCricapiId] = useState('')
   const [editingPlayer, setEditingPlayer] = useState({})
+  // Series pricing & access management
+  const [seriesEditModal, setSeriesEditModal] = useState(null) // null or series object
+  const [seriesEditPrice, setSeriesEditPrice] = useState('')
+  const [seriesEditMessage, setSeriesEditMessage] = useState('')
+  const [seriesAccessPanel, setSeriesAccessPanel] = useState(null) // open series_id
+  const [seriesAccessUsers, setSeriesAccessUsers] = useState([])
+  const [seriesAccessLoading, setSeriesAccessLoading] = useState(false)
+  const [whitelistInput, setWhitelistInput] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -293,28 +301,142 @@ function Admin() {
               {fantasySeries.length === 0 ? (
                 <p style={{color:'#555', padding:'12px 0'}}>No series found.</p>
               ) : fantasySeries.map(s => (
-                <div key={s.id} className="series-mgmt-row">
-                  <div className="series-mgmt-info">
-                    <span className="series-mgmt-name">{s.name}</span>
-                    <span className="series-mgmt-id" title={s.cricapi_series_id}>
-                      {s.cricapi_series_id.slice(0, 8)}…
-                    </span>
-                    <span className={`series-active-badge ${s.is_active ? 'active' : 'inactive'}`}>
-                      {s.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                    <span className="series-mgmt-count">{s.match_count} matches</span>
+                <div key={s.id}>
+                  <div className="series-mgmt-row">
+                    <div className="series-mgmt-info">
+                      <span className="series-mgmt-name">{s.name}</span>
+                      <span className="series-mgmt-id" title={s.cricapi_series_id}>
+                        {s.cricapi_series_id.slice(0, 8)}…
+                      </span>
+                      <span className={`series-active-badge ${s.is_active ? 'active' : 'inactive'}`}>
+                        {s.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      <span className="series-mgmt-count">{s.match_count} matches</span>
+                      {s.price_cents > 0
+                        ? <span className="series-price-badge">${(s.price_cents / 100).toFixed(2)}</span>
+                        : <span className="series-price-badge free">Admin-grant</span>
+                      }
+                    </div>
+                    <div style={{display:'flex', gap:6, flexShrink:0}}>
+                      <button
+                        className="edit-btn-small"
+                        onClick={() => {
+                          setSeriesEditModal(s)
+                          setSeriesEditPrice(s.price_cents ? (s.price_cents / 100).toFixed(2) : '')
+                          setSeriesEditMessage(s.payment_message || '')
+                        }}
+                      >Edit</button>
+                      <button
+                        className="edit-btn-small"
+                        onClick={async () => {
+                          if (seriesAccessPanel === s.id) {
+                            setSeriesAccessPanel(null)
+                            return
+                          }
+                          setSeriesAccessPanel(s.id)
+                          setSeriesAccessLoading(true)
+                          try {
+                            const data = await FantasyService.adminGetSeriesAccess(s.id)
+                            setSeriesAccessUsers(data.users || [])
+                          } catch (err) { alert(err.message) }
+                          finally { setSeriesAccessLoading(false) }
+                        }}
+                      >{seriesAccessPanel === s.id ? 'Hide Access' : 'Access'}</button>
+                      <button
+                        className="series-toggle-btn"
+                        onClick={async () => {
+                          try {
+                            await FantasyService.adminUpdateSeries(s.id, { is_active: !s.is_active })
+                            loadData()
+                          } catch (err) { alert(err.message) }
+                        }}
+                      >
+                        {s.is_active ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    className="series-toggle-btn"
-                    onClick={async () => {
-                      try {
-                        await FantasyService.adminUpdateSeries(s.id, { is_active: !s.is_active })
-                        loadData()
-                      } catch (err) { alert(err.message) }
-                    }}
-                  >
-                    {s.is_active ? 'Deactivate' : 'Activate'}
-                  </button>
+
+                  {/* Access Management Panel */}
+                  {seriesAccessPanel === s.id && (
+                    <div className="access-panel">
+                      <div className="access-panel-header">
+                        <span>Users with Access ({seriesAccessUsers.length})</span>
+                      </div>
+                      {seriesAccessLoading ? (
+                        <p style={{color:'#555', fontSize:'0.82rem', padding:'8px 0'}}>Loading...</p>
+                      ) : seriesAccessUsers.length === 0 ? (
+                        <p style={{color:'#555', fontSize:'0.82rem', padding:'8px 0'}}>No users have access yet.</p>
+                      ) : (
+                        <table className="access-users-table">
+                          <thead>
+                            <tr>
+                              <th>User</th>
+                              <th>Email</th>
+                              <th>Type</th>
+                              <th>Granted</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {seriesAccessUsers.map(u => (
+                              <tr key={u.user_id}>
+                                <td>{u.display_name}</td>
+                                <td style={{color:'#888'}}>{u.email}</td>
+                                <td>
+                                  <span className={`access-type-badge ${u.access_type}`}>
+                                    {u.access_type === 'whitelisted' ? '✅ Whitelisted' : '💳 Paid'}
+                                  </span>
+                                </td>
+                                <td style={{color:'#666', fontSize:'0.78rem'}}>
+                                  {u.granted_at ? new Date(u.granted_at).toLocaleDateString() : '—'}
+                                </td>
+                                <td>
+                                  <button
+                                    className="revoke-btn"
+                                    onClick={async () => {
+                                      if (!confirm(`Revoke access for ${u.display_name}?`)) return
+                                      try {
+                                        await FantasyService.adminRevokeAccess(s.id, u.user_id)
+                                        setSeriesAccessUsers(prev => prev.filter(x => x.user_id !== u.user_id))
+                                      } catch (err) { alert(err.message) }
+                                    }}
+                                  >Revoke</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                      <div className="whitelist-add-form">
+                        <input
+                          className="series-input"
+                          placeholder="Email or User ID to whitelist"
+                          value={whitelistInput}
+                          onChange={e => setWhitelistInput(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && whitelistInput.trim() && (async () => {
+                            try {
+                              await FantasyService.adminWhitelistUser(s.id, whitelistInput.trim())
+                              setWhitelistInput('')
+                              const data = await FantasyService.adminGetSeriesAccess(s.id)
+                              setSeriesAccessUsers(data.users || [])
+                            } catch (err) { alert(err.message) }
+                          })()}
+                        />
+                        <button
+                          className="primary-btn"
+                          disabled={!whitelistInput.trim()}
+                          onClick={async () => {
+                            try {
+                              await FantasyService.adminWhitelistUser(s.id, whitelistInput.trim())
+                              setWhitelistInput('')
+                              const data = await FantasyService.adminGetSeriesAccess(s.id)
+                              setSeriesAccessUsers(data.users || [])
+                            } catch (err) { alert(err.message) }
+                          }}
+                        >+ Whitelist</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -679,6 +801,53 @@ function Admin() {
       )}
 
       <BottomNav />
+
+      {/* Series Edit Modal */}
+      {seriesEditModal && (
+        <div className="modal-overlay-admin" onClick={() => setSeriesEditModal(null)}>
+          <div className="admin-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h3>Edit Series: {seriesEditModal.name}</h3>
+              <button className="modal-close-btn" onClick={() => setSeriesEditModal(null)}>✕</button>
+            </div>
+            <div className="admin-modal-body">
+              <label className="admin-form-label">Entry Price (USD)</label>
+              <input
+                className="admin-form-input"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 5.00 — leave blank for admin-grant only"
+                value={seriesEditPrice}
+                onChange={e => setSeriesEditPrice(e.target.value)}
+              />
+              <label className="admin-form-label" style={{marginTop:14}}>Custom Payment Message</label>
+              <textarea
+                className="admin-form-textarea"
+                rows={3}
+                placeholder="Shown to users in the payment modal (optional)"
+                value={seriesEditMessage}
+                onChange={e => setSeriesEditMessage(e.target.value)}
+              />
+            </div>
+            <div className="admin-modal-footer">
+              <button className="primary-btn" onClick={async () => {
+                try {
+                  const priceDollars = seriesEditPrice.trim()
+                  const priceCents = priceDollars ? Math.round(parseFloat(priceDollars) * 100) : -1
+                  await FantasyService.adminUpdateSeries(seriesEditModal.id, {
+                    price_cents: priceCents,
+                    payment_message: seriesEditMessage.trim() || '',
+                  })
+                  setSeriesEditModal(null)
+                  loadData()
+                } catch (err) { alert(err.message) }
+              }}>Save Changes</button>
+              <button className="cancel-btn" onClick={() => setSeriesEditModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

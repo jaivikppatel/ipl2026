@@ -57,11 +57,19 @@ class PlayerCreditUpdate(BaseModel):
 class SeriesCreate(BaseModel):
     name: str
     cricapi_series_id: str
+    price_cents: Optional[int] = None  # None = admin-grant only; 0 = free
+    payment_message: Optional[str] = None
 
 
 class SeriesUpdate(BaseModel):
     name: Optional[str] = None
     is_active: Optional[bool] = None
+    price_cents: Optional[int] = None  # Use -1 as sentinel to clear the price
+    payment_message: Optional[str] = None
+
+
+class WhitelistRequest(BaseModel):
+    identifier: str  # email or user_id
 
 
 # ============================================================================
@@ -150,29 +158,37 @@ async def get_series(
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            'SELECT id, name, cricapi_series_id, is_active FROM fantasy_series WHERE is_active = 1 ORDER BY id ASC'
+            'SELECT id, name, cricapi_series_id, is_active, price_cents, payment_message FROM fantasy_series WHERE is_active = 1 ORDER BY id ASC'
         )
         rows = cursor.fetchall()
 
-        # Build access map for authenticated user
-        access_set = set()
+        # Build access map (access_type + whitelist_acknowledged) for authenticated user
+        access_map = {}  # series_id -> {access_type, whitelist_acknowledged}
         if current_user_id:
             cursor.execute(
-                'SELECT series_id FROM fantasy_series_access WHERE user_id = %s',
+                'SELECT series_id, access_type, whitelist_acknowledged FROM fantasy_series_access WHERE user_id = %s',
                 (current_user_id,)
             )
-            access_set = {r['series_id'] for r in cursor.fetchall()}
+            for r in cursor.fetchall():
+                access_map[r['series_id']] = {
+                    'access_type': r['access_type'],
+                    'whitelist_acknowledged': bool(r['whitelist_acknowledged']),
+                }
 
-        series = [
-            {
+        series = []
+        for row in rows:
+            access_info = access_map.get(row['id'])
+            series.append({
                 'id': row['id'],
                 'name': row['name'],
                 'cricapi_series_id': row['cricapi_series_id'],
                 'is_active': bool(row['is_active']),
-                'user_has_access': row['id'] in access_set,
-            }
-            for row in rows
-        ]
+                'price_cents': row['price_cents'],
+                'payment_message': row['payment_message'],
+                'user_has_access': access_info is not None,
+                'user_access_type': access_info['access_type'] if access_info else None,
+                'whitelist_acknowledged': access_info['whitelist_acknowledged'] if access_info else False,
+            })
         return {'series': series}
     finally:
         cursor.close()
@@ -1044,10 +1060,12 @@ async def admin_get_series(
     try:
         cursor.execute(
             '''SELECT fs.id, fs.name, fs.cricapi_series_id, fs.is_active, fs.created_at,
+                      fs.price_cents, fs.payment_message,
                       COUNT(fms.id) AS match_count
                FROM fantasy_series fs
                LEFT JOIN fantasy_match_schedule fms ON fms.series_id = fs.id
-               GROUP BY fs.id, fs.name, fs.cricapi_series_id, fs.is_active, fs.created_at
+               GROUP BY fs.id, fs.name, fs.cricapi_series_id, fs.is_active, fs.created_at,
+                        fs.price_cents, fs.payment_message
                ORDER BY fs.id ASC'''
         )
         series = [
@@ -1056,6 +1074,8 @@ async def admin_get_series(
                 'name': r['name'],
                 'cricapi_series_id': r['cricapi_series_id'],
                 'is_active': bool(r['is_active']),
+                'price_cents': r['price_cents'],
+                'payment_message': r['payment_message'],
                 'match_count': int(r['match_count']),
                 'created_at': r['created_at'].isoformat() if r['created_at'] else None,
             }
@@ -1080,8 +1100,8 @@ async def admin_create_series(
     cursor = conn.cursor()
     try:
         cursor.execute(
-            'INSERT INTO fantasy_series (name, cricapi_series_id) VALUES (%s, %s)',
-            (request.name.strip(), request.cricapi_series_id.strip())
+            'INSERT INTO fantasy_series (name, cricapi_series_id, price_cents, payment_message) VALUES (%s, %s, %s, %s)',
+            (request.name.strip(), request.cricapi_series_id.strip(), request.price_cents, request.payment_message)
         )
         conn.commit()
         new_id = cursor.lastrowid
@@ -1113,6 +1133,15 @@ async def admin_update_series(
     if request.is_active is not None:
         fields.append('is_active = %s')
         values.append(1 if request.is_active else 0)
+    if request.price_cents is not None:
+        if request.price_cents == -1:  # sentinel to clear price
+            fields.append('price_cents = NULL')
+        else:
+            fields.append('price_cents = %s')
+            values.append(request.price_cents)
+    if request.payment_message is not None:
+        fields.append('payment_message = %s')
+        values.append(request.payment_message if request.payment_message.strip() else None)
 
     if not fields:
         raise HTTPException(status_code=400, detail='No fields to update')
@@ -1131,6 +1160,149 @@ async def admin_update_series(
         return {'message': 'Series updated successfully'}
     except HTTPException:
         raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@fantasy_router.get('/admin/series/{series_id}/access')
+async def admin_get_series_access(
+    series_id: int,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin: List all users who have access to a series."""
+    from app import verify_admin
+    await verify_admin(authorization)
+
+    conn = _get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            '''SELECT fsa.user_id, fsa.access_type, fsa.whitelist_acknowledged, fsa.granted_at,
+                      u.display_name, u.email
+               FROM fantasy_series_access fsa
+               JOIN users u ON u.id = fsa.user_id
+               WHERE fsa.series_id = %s
+               ORDER BY fsa.granted_at DESC''',
+            (series_id,)
+        )
+        rows = cursor.fetchall()
+        users = [
+            {
+                'user_id': r['user_id'],
+                'display_name': r['display_name'],
+                'email': r['email'],
+                'access_type': r['access_type'],
+                'whitelist_acknowledged': bool(r['whitelist_acknowledged']),
+                'granted_at': r['granted_at'].isoformat() if r['granted_at'] else None,
+            }
+            for r in rows
+        ]
+        return {'users': users}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@fantasy_router.post('/admin/series/{series_id}/whitelist')
+async def admin_whitelist_user(
+    series_id: int,
+    request: WhitelistRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin: Whitelist a user for a series by email or user_id."""
+    from app import verify_admin
+    await verify_admin(authorization)
+
+    identifier = request.identifier.strip()
+
+    conn = _get_db()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Lookup user by email or numeric user_id
+        if identifier.isdigit():
+            cursor.execute('SELECT id, display_name, email FROM users WHERE id = %s', (int(identifier),))
+        else:
+            cursor.execute('SELECT id, display_name, email FROM users WHERE email = %s', (identifier,))
+        user = cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail='User not found')
+
+        cursor.execute(
+            '''INSERT INTO fantasy_series_access (user_id, series_id, access_type, whitelist_acknowledged)
+               VALUES (%s, %s, 'whitelisted', 0)
+               ON DUPLICATE KEY UPDATE access_type = 'whitelisted', whitelist_acknowledged = 0
+            ''',
+            (user['id'], series_id)
+        )
+        conn.commit()
+        return {'message': f"{user['display_name']} whitelisted successfully", 'user_id': user['id']}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@fantasy_router.delete('/admin/series/{series_id}/access/{user_id}')
+async def admin_revoke_access(
+    series_id: int,
+    user_id: int,
+    authorization: Optional[str] = Header(None)
+):
+    """Admin: Revoke a user's access to a series."""
+    from app import verify_admin
+    await verify_admin(authorization)
+
+    conn = _get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'DELETE FROM fantasy_series_access WHERE user_id = %s AND series_id = %s',
+            (user_id, series_id)
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail='Access record not found')
+        conn.commit()
+        return {'message': 'Access revoked successfully'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@fantasy_router.post('/series/{series_id}/acknowledge-whitelist')
+async def acknowledge_whitelist(
+    series_id: int,
+    authorization: Optional[str] = Header(None)
+):
+    """User: Mark whitelist modal as seen so it doesn't show again."""
+    from app import get_current_user
+    user = await get_current_user(authorization)
+    user_id = user['user_id']
+
+    conn = _get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            '''UPDATE fantasy_series_access
+               SET whitelist_acknowledged = 1
+               WHERE user_id = %s AND series_id = %s AND access_type = 'whitelisted'
+            ''',
+            (user_id, series_id)
+        )
+        conn.commit()
+        return {'message': 'Acknowledged'}
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

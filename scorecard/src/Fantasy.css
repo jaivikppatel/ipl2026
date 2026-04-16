@@ -612,3 +612,208 @@
   width: 100%;
 }
 
+/* ── Shared modal overlay (payment + whitelist) ──────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* ── Payment Modal ───────────────────────────────────── */
+.payment-modal {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 20px;
+  padding: 32px 24px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 1.1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+
+.modal-close-btn:hover {
+  color: #fff;
+}
+
+.payment-modal-icon {
+  font-size: 2.8rem;
+  margin-bottom: 10px;
+}
+
+.payment-modal-title {
+  color: #fff;
+  font-size: 1.2rem;
+  margin: 0 0 10px;
+}
+
+.payment-modal-message {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin: 0 0 20px;
+}
+
+.payment-amount {
+  font-size: 2.6rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+}
+
+.payment-modal-sub {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.75rem;
+  margin: 0 0 20px;
+}
+
+.pay-now-btn {
+  background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 10px;
+  transition: opacity 0.15s;
+}
+
+.pay-now-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pay-now-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.payment-modal-cancel {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.payment-modal-cancel:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Whitelist Modal ─────────────────────────────────── */
+.whitelist-modal {
+  background: #0f1f17;
+  border: 1px solid #1e4d2b;
+  border-radius: 20px;
+  padding: 32px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+.whitelist-modal-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+.whitelist-modal-title {
+  color: #4ade80;
+  font-size: 1.3rem;
+  margin: 0 0 10px;
+}
+
+.whitelist-modal-msg {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin: 0 0 24px;
+}
+
+.whitelist-ok-btn {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 13px 32px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+}
+
+.whitelist-ok-btn:hover {
+  opacity: 0.9;
+}
+
+/* ── Payment status banners ──────────────────────────── */
+.payment-success-banner,
+.payment-cancelled-banner {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  animation: fadeIn 0.3s ease;
+}
+
+.payment-success-banner {
+  background: #0f1f17;
+  border: 1px solid #22c55e;
+  color: #4ade80;
+}
+
+.payment-cancelled-banner {
+  background: #1f1206;
+  border: 1px solid #f97316;
+  color: #fdba74;
+}
+
+.banner-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  opacity: 0.7;
+  line-height: 1;
+  margin-left: auto;
+  padding: 0;
+}
+
+.banner-close:hover {
+  opacity: 1;
+}
+

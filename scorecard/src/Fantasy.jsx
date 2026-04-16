@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import FantasyService from './services/FantasyService'
 import FantasyOverallLeaderboard from './FantasyOverallLeaderboard'
@@ -9,28 +9,40 @@ import './Fantasy.css'
 
 function Fantasy() {
   const [activeTab, setActiveTab] = useState('matches')
-  const [series, setSeries] = useState([])          // all active series
+  const [series, setSeries] = useState([])
   const [selectedSeriesId, setSelectedSeriesId] = useState(null)
   const [matches, setMatches] = useState([])
-  const [myTeams, setMyTeams] = useState({}) // matchId -> team or null
+  const [myTeams, setMyTeams] = useState({})
   const [loading, setLoading] = useState(true)
   const [showRules, setShowRules] = useState(false)
-  const [accessDeniedModal, setAccessDeniedModal] = useState(false)
+  const [paymentModal, setPaymentModal] = useState(null)    // null or series object
+  const [adminOnlyModal, setAdminOnlyModal] = useState(false)
+  const [whitelistModal, setWhitelistModal] = useState(null) // null or series object
+  const [paymentStatus, setPaymentStatus] = useState(null)   // null | 'success' | 'cancelled'
+  const [paymentLoading, setPaymentLoading] = useState(false)
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
     if (!AuthService.isAuthenticated()) {
       navigate('/login')
       return
     }
-    // Load series list — the selectedSeriesId effect will trigger loadMatches
+
+    // Handle Stripe return — check URL params
+    const payment = searchParams.get('payment')
+    if (payment === 'success' || payment === 'cancelled') {
+      setPaymentStatus(payment)
+      setSearchParams({})
+    }
+
+    // Load series list
     FantasyService.getSeries()
       .then(data => {
         const list = data.series || []
         setSeries(list)
         const firstId = list.length > 0 ? list[0].id : null
         setSelectedSeriesId(firstId)
-        // If no series, still load all matches (firstId = null)
         if (firstId === null) {
           loadMatches(null)
         }
@@ -47,6 +59,15 @@ function Fantasy() {
       loadMatches(selectedSeriesId)
     }
   }, [selectedSeriesId])
+
+  // Show whitelist congratulations modal when selected series is whitelisted and unacknowledged
+  useEffect(() => {
+    if (!selectedSeriesId || !series.length) return
+    const current = series.find(s => s.id === selectedSeriesId)
+    if (current?.user_access_type === 'whitelisted' && !current?.whitelist_acknowledged) {
+      setWhitelistModal(current)
+    }
+  }, [selectedSeriesId, series])
 
   const loadMatches = async (seriesId) => {
     setLoading(true)
@@ -97,6 +118,40 @@ function Fantasy() {
     return new Date(datetimeStr + 'Z').toLocaleTimeString(undefined, {
       hour: '2-digit', minute: '2-digit', hour12: true, timeZoneName: 'short'
     })
+  }
+
+  const handleDismissWhitelist = async () => {
+    if (!whitelistModal) return
+    const seriesId = whitelistModal.id
+    setWhitelistModal(null)
+    try {
+      await FantasyService.acknowledgeWhitelist(seriesId)
+      setSeries(prev => prev.map(s =>
+        s.id === seriesId ? { ...s, whitelist_acknowledged: true } : s
+      ))
+    } catch (err) {
+      console.error('Failed to acknowledge whitelist:', err)
+    }
+  }
+
+  const handleLockedClick = (currentSeries) => {
+    if (currentSeries?.price_cents > 0) {
+      setPaymentModal(currentSeries)
+    } else {
+      setAdminOnlyModal(true)
+    }
+  }
+
+  const handlePayNow = async () => {
+    if (!paymentModal) return
+    setPaymentLoading(true)
+    try {
+      const { checkout_url } = await FantasyService.createCheckoutSession(paymentModal.id)
+      window.location.href = checkout_url
+    } catch (err) {
+      alert(err.message)
+      setPaymentLoading(false)
+    }
   }
 
   const groupedMatches = {
@@ -193,7 +248,7 @@ function Fantasy() {
           {canCreateLocked && (
             <button
               className="action-btn create-btn locked-btn"
-              onClick={() => setAccessDeniedModal(true)}
+              onClick={() => handleLockedClick(currentSeries)}
             >
               🔒 Create Team
             </button>
@@ -233,7 +288,7 @@ function Fantasy() {
           {isLive && !hasTeam && !deadlinePassed && !hasAccess && (
             <button
               className="action-btn create-btn locked-btn"
-              onClick={() => setAccessDeniedModal(true)}
+              onClick={() => handleLockedClick(currentSeries)}
             >
               🔒 Join Live
             </button>
@@ -327,14 +382,75 @@ function Fantasy() {
 
       <BottomNav />
 
-      {/* Access denied modal */}
-      {accessDeniedModal && (
-        <div className="access-denied-overlay" onClick={() => setAccessDeniedModal(false)}>
+      {/* Payment success / cancelled banners */}
+      {paymentStatus === 'success' && (
+        <div className="payment-success-banner">
+          ✅ Payment successful! You now have full access to this league.
+          <button className="banner-close" onClick={() => setPaymentStatus(null)}>✕</button>
+        </div>
+      )}
+      {paymentStatus === 'cancelled' && (
+        <div className="payment-cancelled-banner">
+          Payment was cancelled. You can try again anytime.
+          <button className="banner-close" onClick={() => setPaymentStatus(null)}>✕</button>
+        </div>
+      )}
+
+      {/* Payment modal — shown when series has a price */}
+      {paymentModal && (
+        <div className="modal-overlay" onClick={() => setPaymentModal(null)}>
+          <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => setPaymentModal(null)}>✕</button>
+            <div className="payment-modal-icon">🏏</div>
+            <h3 className="payment-modal-title">{paymentModal.name}</h3>
+            <p className="payment-modal-message">
+              {paymentModal.payment_message || `Join the ${paymentModal.name} fantasy league and compete against the best!`}
+            </p>
+            <div className="payment-amount">
+              ${(paymentModal.price_cents / 100).toFixed(2)}
+            </div>
+            <p className="payment-modal-sub">One-time entry fee · Secure checkout via Stripe</p>
+            <button
+              className="pay-now-btn"
+              disabled={paymentLoading}
+              onClick={handlePayNow}
+            >
+              {paymentLoading ? '⏳ Redirecting...' : `Pay $${(paymentModal.price_cents / 100).toFixed(2)} to Join`}
+            </button>
+            <button className="payment-modal-cancel" onClick={() => setPaymentModal(null)}>
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Admin-only modal — shown when series has no price (manual grant only) */}
+      {adminOnlyModal && (
+        <div className="access-denied-overlay" onClick={() => setAdminOnlyModal(false)}>
           <div className="access-denied-modal" onClick={(e) => e.stopPropagation()}>
             <div className="access-denied-icon">🔒</div>
             <h3>Access Restricted</h3>
             <p>You are not allowed to participate in this series. Please contact an admin.</p>
-            <button className="access-denied-ok" onClick={() => setAccessDeniedModal(false)}>Got it</button>
+            <button className="access-denied-ok" onClick={() => setAdminOnlyModal(false)}>Got it</button>
+          </div>
+        </div>
+      )}
+
+      {/* Whitelist congratulations modal */}
+      {whitelistModal && (
+        <div className="modal-overlay" onClick={handleDismissWhitelist}>
+          <div className="whitelist-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="whitelist-modal-icon">🎉</div>
+            <h3 className="whitelist-modal-title">You're In — Free!</h3>
+            <p className="whitelist-modal-msg">
+              You've been whitelisted for <strong>{whitelistModal.name}</strong>!
+              {whitelistModal.price_cents > 0 && (
+                <> No need to pay <strong>${(whitelistModal.price_cents / 100).toFixed(2)}</strong> — welcome aboard!</>
+              )}
+            </p>
+            <button className="whitelist-ok-btn" onClick={handleDismissWhitelist}>
+              Let's Go! 🏏
+            </button>
           </div>
         </div>
       )}
