@@ -143,19 +143,19 @@ def apply_captain_vc_multipliers(team_players: list, base_points: dict) -> float
 
 def parse_scorecard_batting(batting_entry: dict) -> dict:
     """
-    Parse a batting entry from the CricketData match_scorecard API response
+    Parse a batting entry from the Sportmonks Cricket API v2.0 batting include
     into our stats dict format.
 
-    Expected batting_entry keys from API:
-        batsman (name), r (runs), b (balls), 4s, 6s, sr (strike rate),
-        dismissal-text or similar
+    Expected batting_entry keys from Sportmonks:
+        score (runs), ball (balls faced), fout_x (fours), six_x (sixes),
+        how_out (dismissal string; null if not out)
     """
-    runs = int(batting_entry.get('r', 0) or 0)
-    balls = int(batting_entry.get('b', 0) or 0)
-    fours = int(batting_entry.get('4s', 0) or 0)
-    sixes = int(batting_entry.get('6s', 0) or 0)
-    dismissal = batting_entry.get('wicket-code', '') or batting_entry.get('dismissal-text', '')
-    dismissed = bool(dismissal and dismissal.lower() not in ('', 'not out', 'dnb', 'absent'))
+    runs = int(batting_entry.get('score', 0) or 0)
+    balls = int(batting_entry.get('ball', 0) or 0)
+    fours = int(batting_entry.get('fout_x', 0) or 0)
+    sixes = int(batting_entry.get('six_x', 0) or 0)
+    how_out = batting_entry.get('how_out') or ''
+    dismissed = bool(how_out and how_out.lower() not in ('', 'not out', 'dnb', 'absent'))
 
     return {
         'did_bat': True,
@@ -170,14 +170,13 @@ def parse_scorecard_batting(batting_entry: dict) -> dict:
 
 def parse_scorecard_bowling(bowling_entry: dict) -> dict:
     """
-    Parse a bowling entry from the CricketData match_scorecard API response
+    Parse a bowling entry from the Sportmonks Cricket API v2.0 bowling include
     into our stats dict format.
 
-    Expected bowling_entry keys from API:
-        bowler (name), o (overs), m (maidens), r (runs), w (wickets),
-        wd (wides), nb (no-balls)
+    Expected bowling_entry keys from Sportmonks:
+        overs (e.g. '3.4'), medians (maiden overs), runs, wickets
     """
-    overs_str = str(bowling_entry.get('o', '0') or '0')
+    overs_str = str(bowling_entry.get('overs', '0') or '0')
     # Overs may be "3.4" (3 overs 4 balls) — convert to total balls
     try:
         parts = overs_str.split('.')
@@ -187,9 +186,9 @@ def parse_scorecard_bowling(bowling_entry: dict) -> dict:
     except (ValueError, IndexError):
         balls_bowled = 0
 
-    maidens = int(bowling_entry.get('m', 0) or 0)
-    runs_conceded = int(bowling_entry.get('r', 0) or 0)
-    wickets = int(bowling_entry.get('w', 0) or 0)
+    maidens = int(bowling_entry.get('medians', 0) or 0)
+    runs_conceded = int(bowling_entry.get('runs', 0) or 0)
+    wickets = int(bowling_entry.get('wickets', 0) or 0)
 
     return {
         'did_bowl': True,

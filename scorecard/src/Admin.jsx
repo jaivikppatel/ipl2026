@@ -22,7 +22,8 @@ function Admin() {
   const [fantasyMatches, setFantasyMatches] = useState([])
   const [fantasySeries, setFantasySeries] = useState([])
   const [newSeriesName, setNewSeriesName] = useState('')
-  const [newSeriesCricapiId, setNewSeriesCricapiId] = useState('')
+  const [newSeriesTournamentId, setNewSeriesTournamentId] = useState('')
+  const [newSeriesTournamentType, setNewSeriesTournamentType] = useState('intl')
   const [editingPlayer, setEditingPlayer] = useState({})
   // Series pricing & access management
   const [seriesEditModal, setSeriesEditModal] = useState(null) // null or series object
@@ -305,8 +306,8 @@ function Admin() {
                   <div className="series-mgmt-row">
                     <div className="series-mgmt-info">
                       <span className="series-mgmt-name">{s.name}</span>
-                      <span className="series-mgmt-id" title={s.cricapi_series_id}>
-                        {s.cricapi_series_id.slice(0, 8)}…
+                      <span className="series-mgmt-id" title={String(s.statpal_tournament_id)}>
+                        #{s.statpal_tournament_id} ({s.tournament_type})
                       </span>
                       <span className={`series-active-badge ${s.is_active ? 'active' : 'inactive'}`}>
                         {s.is_active ? 'Active' : 'Inactive'}
@@ -449,21 +450,30 @@ function Admin() {
               />
               <input
                 className="series-input"
-                placeholder="CricAPI Series ID (UUID)"
-                value={newSeriesCricapiId}
-                onChange={e => setNewSeriesCricapiId(e.target.value)}
+                placeholder="StatPal Tournament ID (integer)"
+                type="number"
+                value={newSeriesTournamentId}
+                onChange={e => setNewSeriesTournamentId(e.target.value)}
+              />
+              <input
+                className="series-input"
+                placeholder="Tournament type (intl or tour)"
+                value={newSeriesTournamentType}
+                onChange={e => setNewSeriesTournamentType(e.target.value)}
               />
               <button
                 className="primary-btn"
-                disabled={!newSeriesName.trim() || !newSeriesCricapiId.trim()}
+                disabled={!newSeriesName.trim() || !parseInt(newSeriesTournamentId)}
                 onClick={async () => {
                   try {
                     await FantasyService.adminCreateSeries({
                       name: newSeriesName.trim(),
-                      cricapi_series_id: newSeriesCricapiId.trim(),
+                      statpal_tournament_id: parseInt(newSeriesTournamentId, 10),
+                      tournament_type: newSeriesTournamentType.trim() || 'intl',
                     })
                     setNewSeriesName('')
-                    setNewSeriesCricapiId('')
+                    setNewSeriesTournamentId('')
+                    setNewSeriesTournamentType('intl')
                     loadData()
                   } catch (err) { alert(err.message) }
                 }}

@@ -188,11 +188,17 @@ function Fantasy() {
           <div className="team-col" style={{ '--team-color': match.team1?.color || '#333' }}>
             <div className="team-short">{match.team1?.short || '?'}</div>
             <div className="team-name">{match.team1?.name || 'TBD'}</div>
+            {(isLive || isCompleted) && match.live_score?.home && (
+              <div className="team-score">{match.live_score.home}</div>
+            )}
           </div>
           <div className="vs-divider">VS</div>
           <div className="team-col" style={{ '--team-color': match.team2?.color || '#333' }}>
             <div className="team-short">{match.team2?.short || '?'}</div>
             <div className="team-name">{match.team2?.name || 'TBD'}</div>
+            {(isLive || isCompleted) && match.live_score?.away && (
+              <div className="team-score">{match.live_score.away}</div>
+            )}
           </div>
         </div>
 
@@ -202,31 +208,12 @@ function Fantasy() {
           {match.venue && <span className="venue-text">📍 {match.venue}</span>}
         </div>
 
-        {isCompleted && match.status_note && (
+        {(isCompleted || isLive) && match.status_note && (
           <div className="result-text">{match.status_note}</div>
-        )}
-
-        {(isLive || isCompleted) && match.live_score && match.live_score.length > 0 && (
-          <div className="live-score-block">
-            {match.live_score.map((inn, i) => {
-              // Shorten inning label: "Mumbai Indians 1st Innings" → "MI 1st"
-              const label = inn.inning || ''
-              const short = label.replace(/\s+(innings|inning)$/i, '').replace(/\s+\d+(st|nd|rd|th)\s+/i, ' ')
-              return (
-                <div key={i} className="live-score-row">
-                  <span className="live-score-label">{short}</span>
-                  <span className="live-score-val">{inn.r}/{inn.w} ({inn.o} ov)</span>
-                </div>
-              )
-            })}
-          </div>
         )}
 
         {isLive && !match.status_note && (
           <div className="live-status-text">🔴 Match in progress</div>
-        )}
-        {isLive && match.status_note && (
-          <div className="live-status-text">{match.status_note}</div>
         )}
 
         {hasTeam && (
@@ -409,7 +396,7 @@ function Fantasy() {
             <div className="payment-amount">
               ${(paymentModal.price_cents / 100).toFixed(2)}
             </div>
-            <p className="payment-modal-sub">One-time entry fee · Secure checkout via Stripe</p>
+            <p className="payment-modal-sub">One-time fee for the full season · Secure checkout via Stripe</p>
             <button
               className="pay-now-btn"
               disabled={paymentLoading}

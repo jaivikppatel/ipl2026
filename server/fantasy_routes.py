@@ -56,7 +56,8 @@ class PlayerCreditUpdate(BaseModel):
 
 class SeriesCreate(BaseModel):
     name: str
-    cricapi_series_id: str
+    statpal_tournament_id: int
+    tournament_type: str = 'intl'
     price_cents: Optional[int] = None  # None = admin-grant only; 0 = free
     payment_message: Optional[str] = None
 
@@ -64,6 +65,8 @@ class SeriesCreate(BaseModel):
 class SeriesUpdate(BaseModel):
     name: Optional[str] = None
     is_active: Optional[bool] = None
+    statpal_tournament_id: Optional[int] = None
+    tournament_type: Optional[str] = None
     price_cents: Optional[int] = None  # Use -1 as sentinel to clear the price
     payment_message: Optional[str] = None
 
@@ -158,7 +161,7 @@ async def get_series(
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            'SELECT id, name, cricapi_series_id, is_active, price_cents, payment_message FROM fantasy_series WHERE is_active = 1 ORDER BY id ASC'
+            'SELECT id, name, statpal_tournament_id, tournament_type, is_active, price_cents, payment_message FROM fantasy_series WHERE is_active = 1 ORDER BY id ASC'
         )
         rows = cursor.fetchall()
 
@@ -181,7 +184,8 @@ async def get_series(
             series.append({
                 'id': row['id'],
                 'name': row['name'],
-                'cricapi_series_id': row['cricapi_series_id'],
+                'statpal_tournament_id': row['statpal_tournament_id'],
+                'tournament_type': row['tournament_type'],
                 'is_active': bool(row['is_active']),
                 'price_cents': row['price_cents'],
                 'payment_message': row['payment_message'],
@@ -210,7 +214,7 @@ async def get_matches(
         if series_id is not None:
             cursor.execute(
                 '''SELECT
-                     fms.id, fms.cricapi_match_id, fms.match_name, fms.short_name,
+                     fms.id, fms.statpal_fixture_id, fms.match_name, fms.short_name,
                      fms.match_date, fms.match_datetime_gmt, fms.venue,
                      fms.status, fms.status_note, fms.live_score, fms.squad_fetched, fms.playing_xi_announced,
                      t1.short_name AS team1_short, t1.full_name AS team1_name, t1.primary_color AS team1_color,
@@ -225,7 +229,7 @@ async def get_matches(
         else:
             cursor.execute(
                 '''SELECT
-                     fms.id, fms.cricapi_match_id, fms.match_name, fms.short_name,
+                     fms.id, fms.statpal_fixture_id, fms.match_name, fms.short_name,
                      fms.match_date, fms.match_datetime_gmt, fms.venue,
                      fms.status, fms.status_note, fms.live_score, fms.squad_fetched, fms.playing_xi_announced,
                      t1.short_name AS team1_short, t1.full_name AS team1_name, t1.primary_color AS team1_color,
@@ -239,7 +243,7 @@ async def get_matches(
         for row in cursor.fetchall():
             matches.append({
                 'id': row['id'],
-                'cricapi_match_id': row['cricapi_match_id'],
+                'statpal_fixture_id': row['statpal_fixture_id'],
                 'match_name': row['match_name'],
                 'short_name': row['short_name'],
                 'match_date': row['match_date'].isoformat() if row['match_date'] else None,
@@ -1059,12 +1063,12 @@ async def admin_get_series(
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            '''SELECT fs.id, fs.name, fs.cricapi_series_id, fs.is_active, fs.created_at,
+            '''SELECT fs.id, fs.name, fs.statpal_tournament_id, fs.tournament_type, fs.is_active, fs.created_at,
                       fs.price_cents, fs.payment_message,
                       COUNT(fms.id) AS match_count
                FROM fantasy_series fs
                LEFT JOIN fantasy_match_schedule fms ON fms.series_id = fs.id
-               GROUP BY fs.id, fs.name, fs.cricapi_series_id, fs.is_active, fs.created_at,
+               GROUP BY fs.id, fs.name, fs.statpal_tournament_id, fs.tournament_type, fs.is_active, fs.created_at,
                         fs.price_cents, fs.payment_message
                ORDER BY fs.id ASC'''
         )
@@ -1072,7 +1076,8 @@ async def admin_get_series(
             {
                 'id': r['id'],
                 'name': r['name'],
-                'cricapi_series_id': r['cricapi_series_id'],
+                'statpal_tournament_id': r['statpal_tournament_id'],
+                'tournament_type': r['tournament_type'],
                 'is_active': bool(r['is_active']),
                 'price_cents': r['price_cents'],
                 'payment_message': r['payment_message'],
@@ -1100,8 +1105,8 @@ async def admin_create_series(
     cursor = conn.cursor()
     try:
         cursor.execute(
-            'INSERT INTO fantasy_series (name, cricapi_series_id, price_cents, payment_message) VALUES (%s, %s, %s, %s)',
-            (request.name.strip(), request.cricapi_series_id.strip(), request.price_cents, request.payment_message)
+            'INSERT INTO fantasy_series (name, statpal_tournament_id, tournament_type, price_cents, payment_message) VALUES (%s, %s, %s, %s, %s)',
+            (request.name.strip(), request.statpal_tournament_id, request.tournament_type, request.price_cents, request.payment_message)
         )
         conn.commit()
         new_id = cursor.lastrowid
@@ -1109,7 +1114,7 @@ async def admin_create_series(
     except Exception as e:
         conn.rollback()
         if 'Duplicate' in str(e):
-            raise HTTPException(status_code=409, detail='A series with that CricAPI series ID already exists')
+            raise HTTPException(status_code=409, detail='A series with that Statpal tournament ID already exists')
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()
@@ -1133,6 +1138,12 @@ async def admin_update_series(
     if request.is_active is not None:
         fields.append('is_active = %s')
         values.append(1 if request.is_active else 0)
+    if request.statpal_tournament_id is not None:
+        fields.append('statpal_tournament_id = %s')
+        values.append(request.statpal_tournament_id)
+    if request.tournament_type is not None:
+        fields.append('tournament_type = %s')
+        values.append(request.tournament_type)
     if request.price_cents is not None:
         if request.price_cents == -1:  # sentinel to clear price
             fields.append('price_cents = NULL')
@@ -1323,7 +1334,7 @@ async def admin_get_players(
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            '''SELECT p.id, p.cricapi_player_id, p.name, p.role, p.credits, p.is_active,
+            '''SELECT p.id, p.statpal_player_id, p.name, p.role, p.credits, p.is_active,
                       p.batting_style, p.bowling_style, p.country, p.image_url,
                       t.short_name AS team_short, t.full_name AS team_name, t.id AS team_id
                FROM fantasy_ipl_players p
@@ -1334,7 +1345,7 @@ async def admin_get_players(
         for r in cursor.fetchall():
             players.append({
                 'id': r['id'],
-                'cricapi_player_id': r['cricapi_player_id'],
+                'statpal_player_id': r['statpal_player_id'],
                 'name': r['name'],
                 'role': r['role'],
                 'credits': float(r['credits']),
@@ -1403,9 +1414,7 @@ async def admin_get_api_usage(authorization: Optional[str] = Header(None)):
     calls_today = get_api_calls_today()
     return {
         'calls_today': calls_today,
-        'daily_limit': 2000,
-        'safety_limit': 1900,
-        'remaining': max(0, 1900 - calls_today),
+        'rate_limit_note': 'Statpal.io API v1 — calls tracked for monitoring',
     }
 
 
@@ -1416,9 +1425,9 @@ async def admin_trigger_sync(authorization: Optional[str] = Header(None)):
     await verify_admin(authorization)
 
     try:
-        from fantasy_scheduler import fetch_series_info
-        fetch_series_info()
-        return {'message': 'Series sync completed'}
+        from fantasy_scheduler import fetch_season_fixtures
+        fetch_season_fixtures()
+        return {'message': 'Season fixtures sync completed'}
     except RuntimeError as e:
         raise HTTPException(status_code=429, detail=str(e))
     except Exception as e:
@@ -1438,7 +1447,7 @@ async def admin_trigger_squad(
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            'SELECT id, cricapi_match_id FROM fantasy_match_schedule WHERE id = %s',
+            'SELECT id, statpal_fixture_id FROM fantasy_match_schedule WHERE id = %s',
             (match_id,)
         )
         match = cursor.fetchone()
@@ -1449,13 +1458,13 @@ async def admin_trigger_squad(
         conn.close()
 
     try:
-        from fantasy_scheduler import fetch_match_squad
-        fetch_match_squad(match['cricapi_match_id'], match['id'])
-        return {'message': f'Squad fetch triggered for match {match_id}'}
+        from fantasy_scheduler import fetch_tournament_squads
+        fetch_tournament_squads()
+        return {'message': f'Squad sync triggered for all active series'}
     except RuntimeError as e:
         raise HTTPException(status_code=429, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f'Squad fetch failed: {str(e)}')
+        raise HTTPException(status_code=500, detail=f'Squad sync failed: {str(e)}')
 
 
 @fantasy_router.post('/admin/trigger-scorecard/{match_id}')
@@ -1471,7 +1480,7 @@ async def admin_trigger_scorecard(
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            'SELECT id, cricapi_match_id FROM fantasy_match_schedule WHERE id = %s',
+            'SELECT id, statpal_fixture_id FROM fantasy_match_schedule WHERE id = %s',
             (match_id,)
         )
         match = cursor.fetchone()
@@ -1483,7 +1492,7 @@ async def admin_trigger_scorecard(
 
     try:
         from fantasy_scheduler import fetch_live_scorecard
-        fetch_live_scorecard(match['cricapi_match_id'], match['id'])
+        fetch_live_scorecard(match['statpal_fixture_id'], match['id'])
         return {'message': f'Scorecard fetch triggered for match {match_id}'}
     except RuntimeError as e:
         raise HTTPException(status_code=429, detail=str(e))
