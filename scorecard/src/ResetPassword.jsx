@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import './ResetPassword.css'
-import logo from './assets/logo.svg'
+import AajFantasyLogo from './AajFantasyLogo'
 
 function ResetPassword() {
   const [searchParams] = useSearchParams()
@@ -107,7 +107,7 @@ function ResetPassword() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-logo">
-            <img src={logo} alt="Cricket Scorecard Logo" />
+            <AajFantasyLogo size="lg" />
           </div>
           
           <div className="error-state">
@@ -128,7 +128,7 @@ function ResetPassword() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-logo">
-            <img src={logo} alt="Cricket Scorecard Logo" />
+            <AajFantasyLogo size="lg" />
           </div>
           
           <div className="success-message">
@@ -148,7 +148,7 @@ function ResetPassword() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src={logo} alt="Cricket Scorecard Logo" />
+          <AajFantasyLogo size="lg" />
         </div>
         
         <h1 className="auth-title">Reset Password</h1>

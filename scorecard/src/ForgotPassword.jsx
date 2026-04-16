@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import './ForgotPassword.css'
-import logo from './assets/logo.svg'
+import AajFantasyLogo from './AajFantasyLogo'
 
 function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -36,7 +36,7 @@ function ForgotPassword() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-logo">
-            <img src={logo} alt="Cricket Scorecard Logo" />
+            <AajFantasyLogo size="lg" />
           </div>
           
           <div className="success-message">
@@ -65,7 +65,7 @@ function ForgotPassword() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src={logo} alt="Cricket Scorecard Logo" />
+          <AajFantasyLogo size="lg" />
         </div>
         
         <h1 className="auth-title">Forgot Password?</h1>

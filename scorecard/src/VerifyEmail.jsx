@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import './VerifyEmail.css'
-import logo from './assets/logo.svg'
+import AajFantasyLogo from './AajFantasyLogo'
 
 function VerifyEmail() {
   const [status, setStatus] = useState('loading') // loading | success | error
@@ -56,7 +56,7 @@ function VerifyEmail() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src={logo} alt="Cricket Scorecard Logo" />
+          <AajFantasyLogo size="lg" />
         </div>
 
         {status === 'loading' && (

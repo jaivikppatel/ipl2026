@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import './Login.css'
-import logo from './assets/logo.svg'
+import AajFantasyLogo from './AajFantasyLogo'
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -53,7 +53,7 @@ function Login() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src={logo} alt="Cricket Scorecard Logo" />
+          <AajFantasyLogo size="lg" />
         </div>
         <h1 className="auth-title">Welcome Back</h1>
         <p className="auth-subtitle">Sign in to continue</p>

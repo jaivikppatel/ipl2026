@@ -4,6 +4,7 @@ import AuthService from './services/AuthService'
 import FantasyService from './services/FantasyService'
 import FantasyOverallLeaderboard from './FantasyOverallLeaderboard'
 import BottomNav from './BottomNav'
+import AajFantasyLogo from './AajFantasyLogo'
 import './Fantasy.css'
 
 function Fantasy() {
@@ -245,11 +246,9 @@ function Fantasy() {
   return (
     <div className="fantasy-container">
       <div className="fantasy-header">
-        <div className="fantasy-header-top">
-          <h1>🏏 Fantasy Cricket</h1>
-          <button className="rules-btn" onClick={() => setShowRules(true)}>ℹ️ Rules</button>
+        <div className="fantasy-header-logo">
+          <AajFantasyLogo size="md" />
         </div>
-        <p className="fantasy-subtitle">Pick your dream team & beat your friends</p>
       </div>
 
       {/* Series tabs — only shown when there are 2+ series */}
@@ -281,6 +280,7 @@ function Fantasy() {
         >
           🏏 Matches
         </button>
+        <button className="rules-btn" onClick={() => setShowRules(true)}>ℹ️ Rules</button>
       </div>
 
       {activeTab === 'leaderboard' ? (

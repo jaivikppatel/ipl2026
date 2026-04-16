@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import Leaderboard from './Leaderboard'
 import BottomNav from './BottomNav'
+import AajFantasyLogo from './AajFantasyLogo'
 import './Dashboard.css'
-import logo from './assets/logo.svg'
 
 function Dashboard() {
   const [user, setUser] = useState(null)
@@ -46,8 +46,7 @@ function Dashboard() {
       <div className="dashboard-header">
         <div className="header-content">
           <div className="logo-section">
-            <img src={logo} alt="Cricket Scorecard Logo" className="header-logo" />
-            <h1 className="app-title">Cricket Scorecard</h1>
+            <AajFantasyLogo size="md" />
           </div>
         </div>
       </div>

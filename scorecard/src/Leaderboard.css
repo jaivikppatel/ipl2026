@@ -5,7 +5,7 @@
   padding: 20px;
   padding-bottom: 90px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #0a0a0a;
 }
 
 /* ===== HEADER ===== */
@@ -76,8 +76,8 @@
 .retry-button {
   margin-top: 20px;
   padding: 12px 30px;
-  background: white;
-  color: #667eea;
+  background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
+  color: white;
   border: none;
   border-radius: 12px;
   font-weight: 600;
@@ -87,7 +87,7 @@
 
 .retry-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 20px rgba(236, 0, 140, 0.3);
 }
 
 .empty-state {
@@ -241,7 +241,7 @@
   font-size: 3rem;
   font-weight: 700;
   color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
 }
 
 .avatar-placeholder.gold {
@@ -426,7 +426,7 @@
   align-items: center;
   justify-content: center;
   color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #ec008c 0%, #ff6b00 100%);
 }
 
 .ranking-info {

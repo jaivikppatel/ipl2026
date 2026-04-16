@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import AuthService from './services/AuthService'
 import './Signup.css'
-import logo from './assets/logo.svg'
+import AajFantasyLogo from './AajFantasyLogo'
 
 function Signup() {
   const [name, setName] = useState('')
@@ -86,7 +86,7 @@ function Signup() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-logo">
-            <img src={logo} alt="Cricket Scorecard Logo" />
+            <AajFantasyLogo size="lg" />
           </div>
           <div className="success-message">
             <div className="success-icon">✓</div>
@@ -124,7 +124,7 @@ function Signup() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-logo">
-          <img src={logo} alt="Cricket Scorecard Logo" />
+          <AajFantasyLogo size="lg" />
         </div>
         <h1 className="auth-title">Create Account</h1>
         <p className="auth-subtitle">Sign up to get started</p>
