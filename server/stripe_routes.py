@@ -139,8 +139,8 @@ async def stripe_webhook(request: Request):
         except Exception:
             raise HTTPException(status_code=400, detail='Webhook error')
 
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
+    if event.type == 'checkout.session.completed':
+        session = event.data.object
         _fulfill_checkout(session)
 
     return JSONResponse(content={'received': True}, status_code=200)
@@ -151,10 +151,10 @@ def _fulfill_checkout(session):
     Grant series access after successful payment.
     Safe to call multiple times (idempotent via ON DUPLICATE KEY UPDATE).
     """
-    metadata = session.get('metadata', {})
-    user_id = metadata.get('user_id')
-    series_id = metadata.get('series_id')
-    session_id = session.get('id')
+    metadata = session.metadata
+    user_id = metadata.user_id if metadata else None
+    series_id = metadata.series_id if metadata else None
+    session_id = session.id
 
     if not user_id or not series_id:
         return  # Missing metadata — nothing to fulfill
