@@ -1,5 +1,5 @@
 /**
- * AajFantasyLogo — inline SVG brand logo for "आज Fantasy"
+ * AajFantasyLogo — brand logo for "आज Fantasy"
  *
  * Props:
  *  size     'sm' | 'md' | 'lg'  (default 'md')
@@ -10,90 +10,98 @@ import { useId } from 'react'
 
 export default function AajFantasyLogo({ size = 'md', light = false, className = '' }) {
   const cfg = {
-    sm: { w: 130, h: 52,  aajY: 28, aajFs: 29, lineY: 34, fantasyY: 49, fantasyFs: 17, ls: '1.5' },
-    md: { w: 165, h: 66,  aajY: 35, aajFs: 37, lineY: 42, fantasyY: 62, fantasyFs: 22, ls: '2'   },
-    lg: { w: 205, h: 82,  aajY: 44, aajFs: 46, lineY: 52, fantasyY: 76, fantasyFs: 27, ls: '2.5' },
+    sm: { w: 130, svgH: 38, aajY: 28, aajFs: 29, lineY: 34, fantasyFs: 17, ls: '0.15em', gap: 4 },
+    md: { w: 165, svgH: 48, aajY: 35, aajFs: 37, lineY: 42, fantasyFs: 22, ls: '0.18em', gap: 5 },
+    lg: { w: 205, svgH: 58, aajY: 44, aajFs: 46, lineY: 52, fantasyFs: 27, ls: '0.22em', gap: 6 },
   }[size]
 
-  const uid     = useId().replace(/:/g, 'x')
-  const gradId  = `afg-${uid}`
-  const lineId  = `afgl-${uid}`
-  const glowId  = `afgw-${uid}`
+  const uid    = useId().replace(/:/g, 'x')
+  const lineId = `afgl-${uid}`
+  const glowId = `afgw-${uid}`
+
+  const fantasyStyle = light
+    ? { color: 'white' }
+    : {
+        background: 'linear-gradient(90deg, #ec008c 0%, #ff6b00 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+      }
 
   return (
-    <svg
-      width={cfg.w}
-      height={cfg.h}
-      viewBox={`0 0 ${cfg.w} ${cfg.h}`}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+    <div
       className={className}
+      style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: cfg.gap }}
       aria-label="आज Fantasy"
     >
-      <defs>
-        {/* Pink → orange gradient for "FANTASY" text */}
-        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stopColor="#ec008c" />
-          <stop offset="100%" stopColor="#ff6b00" />
-        </linearGradient>
-
-        {/* Faded gradient for the separator line */}
-        <linearGradient id={lineId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stopColor="#ec008c" stopOpacity="0" />
-          <stop offset="30%"  stopColor="#ec008c" stopOpacity="0.9" />
-          <stop offset="70%"  stopColor="#ff6b00" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#ff6b00" stopOpacity="0" />
-        </linearGradient>
-
-        {/* Pink glow behind "आज" */}
-        <filter id={glowId} x="-20%" y="-25%" width="140%" height="150%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
-          <feFlood floodColor="#ec008c" floodOpacity="0.55" result="color" />
-          <feComposite in="color" in2="blur" operator="in" result="glow" />
-          <feMerge>
-            <feMergeNode in="glow" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-
-      {/* "आज" — Devanagari, white with pink glow */}
-      <text
-        x={cfg.w / 2}
-        y={cfg.aajY}
-        textAnchor="middle"
-        fontFamily="'Rajdhani', sans-serif"
-        fontWeight="700"
-        fontSize={cfg.aajFs}
-        fill="white"
-        filter={`url(#${glowId})`}
+      {/* SVG: "आज" + separator line only */}
+      <svg
+        width={cfg.w}
+        height={cfg.svgH}
+        viewBox={`0 0 ${cfg.w} ${cfg.svgH}`}
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
       >
-        आज
-      </text>
+        <defs>
+          {/* Faded gradient for the separator line */}
+          <linearGradient id={lineId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stopColor="#ec008c" stopOpacity="0" />
+            <stop offset="30%"  stopColor="#ec008c" stopOpacity="0.9" />
+            <stop offset="70%"  stopColor="#ff6b00" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#ff6b00" stopOpacity="0" />
+          </linearGradient>
 
-      {/* Separator line */}
-      <line
-        x1={cfg.w * 0.08}
-        y1={cfg.lineY}
-        x2={cfg.w * 0.92}
-        y2={cfg.lineY}
-        stroke={light ? 'rgba(255,255,255,0.5)' : `url(#${lineId})`}
-        strokeWidth="1.5"
-      />
+          {/* Pink glow behind "आज" */}
+          <filter id={glowId} x="-20%" y="-25%" width="140%" height="150%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
+            <feFlood floodColor="#ec008c" floodOpacity="0.55" result="color" />
+            <feComposite in="color" in2="blur" operator="in" result="glow" />
+            <feMerge>
+              <feMergeNode in="glow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
-      {/* "FANTASY" — gradient or white (on gradient bg) */}
-      <text
-        x={cfg.w / 2}
-        y={cfg.fantasyY}
-        textAnchor="middle"
-        fontFamily="'Rajdhani', sans-serif"
-        fontWeight="700"
-        fontSize={cfg.fantasyFs}
-        fill={light ? 'white' : `url(#${gradId})`}
-        letterSpacing={cfg.ls}
+        {/* "आज" — Devanagari, white with pink glow */}
+        <text
+          x={cfg.w / 2}
+          y={cfg.aajY}
+          textAnchor="middle"
+          fontFamily="'Rajdhani', sans-serif"
+          fontWeight="700"
+          fontSize={cfg.aajFs}
+          fill="white"
+          filter={`url(#${glowId})`}
+        >
+          आज
+        </text>
+
+        {/* Separator line */}
+        <line
+          x1={cfg.w * 0.08}
+          y1={cfg.lineY}
+          x2={cfg.w * 0.92}
+          y2={cfg.lineY}
+          stroke={light ? 'rgba(255,255,255,0.5)' : `url(#${lineId})`}
+          strokeWidth="1.5"
+        />
+      </svg>
+
+      {/* "FANTASY" — plain HTML text with CSS gradient, never breaks */}
+      <span
+        style={{
+          fontFamily: "'Rajdhani', sans-serif",
+          fontWeight: 700,
+          fontSize: cfg.fantasyFs,
+          letterSpacing: cfg.ls,
+          lineHeight: 1,
+          display: 'block',
+          ...fantasyStyle,
+        }}
       >
         FANTASY
-      </text>
-    </svg>
+      </span>
+    </div>
   )
 }
