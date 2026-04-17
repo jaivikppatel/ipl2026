@@ -47,15 +47,20 @@ function HumanIcon() {
  * PlayerAvatar — shows player photo when available, otherwise a human silhouette icon.
  *
  * Props:
- *   imageUrl   – URL from API (may be null or a placeholder)
+ *   imageData  – Base64 data URI stored in DB (preferred, avoids broken CDN URLs)
+ *   imageUrl   – CDN URL from API (fallback when imageData is absent)
  *   name       – Player name (used for alt text)
  *   teamColor  – Team primary color (used as background when no real image)
  *   className  – CSS class for the outer div (default: 'player-avatar')
  *   style      – Extra inline styles for the outer div
  */
-export default function PlayerAvatar({ imageUrl, name, teamColor, className = 'player-avatar', style = {} }) {
+export default function PlayerAvatar({ imageData, imageUrl, name, teamColor, className = 'player-avatar', style = {} }) {
   const [imgFailed, setImgFailed] = useState(false)
-  const showImage = isRealImage(imageUrl) && !imgFailed
+
+  // Prefer local blob; fall back to CDN URL
+  const src = (imageData && imageData.startsWith('data:image/')) ? imageData
+             : (isRealImage(imageUrl) ? imageUrl : null)
+  const showImage = src && !imgFailed
 
   return (
     <div
@@ -64,7 +69,7 @@ export default function PlayerAvatar({ imageUrl, name, teamColor, className = 'p
     >
       {showImage ? (
         <img
-          src={imageUrl}
+          src={src}
           alt={name || ''}
           className="pa-img"
           onError={() => setImgFailed(true)}

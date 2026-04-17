@@ -485,7 +485,6 @@ def fetch_tournament_squads(series_db_id: int = None, tournament_type: str = Non
                        ON DUPLICATE KEY UPDATE
                          name = VALUES(name),
                          team_id = VALUES(team_id),
-                         role = IF(role != VALUES(role) AND VALUES(role) != 'BAT', VALUES(role), role),
                          updated_at = NOW()''',
                     (statpal_player_id, player_name, team_db_id, role)
                 )

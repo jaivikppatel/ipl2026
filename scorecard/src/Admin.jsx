@@ -480,134 +480,119 @@ function Admin() {
               >+ Add Series</button>
             </div>
             {/* API Usage */}
-            <div className="section-header">
-              <h2>API Usage Today</h2>
+            <div className="fa-section-header">
+              <h3 className="fa-section-title">API Usage Today</h3>
               <button
-                className="primary-btn"
+                className="fa-action-btn"
                 onClick={async () => {
                   try { await FantasyService.adminTriggerSync(); alert('Sync triggered!'); loadData() }
                   catch (err) { alert(err.message) }
                 }}
               >🔄 Sync Schedule</button>
             </div>
-            <div className="modern-card" style={{marginBottom: 16}}>
-              <div className="card-body">
-                <div style={{display:'flex', justifyContent:'space-between', marginBottom:8}}>
-                  <span style={{color:'#aaa', fontSize:'0.85rem'}}>Calls today</span>
-                  <span style={{fontWeight:700}}>{fantasyApiUsage.calls_made || 0} / 2000</span>
-                </div>
-                <div style={{background:'#222', borderRadius:8, height:10}}>
-                  <div style={{
-                    background: 'linear-gradient(90deg,#ec008c,#ff6b00)',
-                    width: `${Math.min(100, ((fantasyApiUsage.calls_made || 0)/2000)*100)}%`,
-                    height:'100%', borderRadius:8, transition:'width 0.3s'
-                  }} />
-                </div>
-                {fantasyApiUsage.last_call_type && (
-                  <p style={{color:'#666', fontSize:'0.78rem', marginTop:6}}>Last: {fantasyApiUsage.last_call_type}</p>
-                )}
+            <div className="fa-api-card">
+              <div className="fa-api-row">
+                <span className="fa-api-label">Calls today</span>
+                <span className="fa-api-value">{fantasyApiUsage.calls_made || 0} <span className="fa-api-max">/ 2000</span></span>
               </div>
+              <div className="fa-api-bar-track">
+                <div className="fa-api-bar-fill" style={{width:`${Math.min(100,((fantasyApiUsage.calls_made||0)/2000)*100)}%`}} />
+              </div>
+              {fantasyApiUsage.last_call_type && (
+                <div className="fa-api-last">Last call: {fantasyApiUsage.last_call_type}</div>
+              )}
             </div>
 
             {/* Fantasy Matches */}
-            <div className="section-header" style={{marginTop:20}}>
-              <h2>Fantasy Matches</h2>
+            <div className="fa-section-header" style={{marginTop:24}}>
+              <h3 className="fa-section-title">Matches ({fantasyMatches.length})</h3>
             </div>
-            <div className="games-grid">
+            <div className="fa-matches-grid">
               {fantasyMatches.map(m => (
-                <div key={m.id} className="modern-card">
-                  <div className="card-header">
-                    <h3 style={{fontSize:'0.85rem'}}>{m.match_name}</h3>
-                    <span className={`status-badge ${m.status === 'completed' ? 'completed' : m.status === 'live' ? 'live' : 'pending'}`}>
-                      {m.status}
-                    </span>
+                <div key={m.id} className="fa-match-card">
+                  <div className="fa-match-top">
+                    <span className={`fa-status-pill ${m.status}`}>{m.status === 'live' ? '🔴 Live' : m.status === 'completed' ? '✓ Done' : '⏳ Up'}</span>
+                    <span className="fa-match-name">{m.match_name}</span>
                   </div>
-                  <div className="card-body">
-                    <p style={{fontSize:'0.78rem', color:'#888'}}>Squad: {m.squad_fetched ? '✓ Fetched' : '✗ Pending'}</p>
+                  <div className="fa-match-badges">
+                    <span className={`fa-badge ${m.squad_fetched ? 'ok' : 'warn'}`}>{m.squad_fetched ? '✓ Squad' : '✗ Squad'}</span>
                   </div>
-                  <div className="card-actions">
-                    <button
-                      className="edit-btn-small"
-                      onClick={async () => {
-                        try { await FantasyService.adminTriggerSquad(m.id); alert('Squad fetch triggered!'); loadData() }
-                        catch(err) { alert(err.message) }
-                      }}
-                    >Squad</button>
-                    <button
-                      className="edit-btn-small"
-                      onClick={async () => {
-                        try { await FantasyService.adminTriggerScorecard(m.id); alert('Scorecard fetch triggered!'); loadData() }
-                        catch(err) { alert(err.message) }
-                      }}
-                    >Score</button>
+                  <div className="fa-match-actions">
+                    <button className="fa-sm-btn" onClick={async () => { try { await FantasyService.adminTriggerSquad(m.id); alert('Squad triggered!'); loadData() } catch(e){alert(e.message)} }}>Fetch Squad</button>
+                    <button className="fa-sm-btn" onClick={async () => { try { await FantasyService.adminTriggerScorecard(m.id); alert('Scorecard triggered!'); loadData() } catch(e){alert(e.message)} }}>Fetch Score</button>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Fantasy Players */}
-            <div className="section-header" style={{marginTop:20}}>
-              <h2>Player Credits &amp; Roles</h2>
+            <div className="fa-section-header" style={{marginTop:24}}>
+              <h3 className="fa-section-title">Players ({fantasyPlayers.length})</h3>
             </div>
             {fantasyPlayers.length === 0 ? (
-              <p style={{color:'#555', textAlign:'center', padding:'30px'}}>No players yet. Scores will be auto-populated when squad is fetched.</p>
+              <p className="fa-empty-msg">No players yet — fetch a squad first.</p>
             ) : (
-              <div style={{overflowX:'auto'}}>
-                <table style={{width:'100%', borderCollapse:'collapse', fontSize:'0.82rem'}}>
-                  <thead>
-                    <tr style={{background:'#141414', color:'#666', textTransform:'uppercase', fontSize:'0.7rem'}}>
-                      <th style={{padding:'8px 12px', textAlign:'left'}}>Player</th>
-                      <th style={{padding:'8px 12px'}}>Team</th>
-                      <th style={{padding:'8px 12px'}}>Role</th>
-                      <th style={{padding:'8px 12px'}}>Credits</th>
-                      <th style={{padding:'8px 12px'}}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fantasyPlayers.map(p => (
-                      <tr key={p.id} style={{borderBottom:'1px solid #1a1a1a'}}>
-                        <td style={{padding:'8px 12px'}}>{p.name}</td>
-                        <td style={{padding:'8px 12px', textAlign:'center', color:'#888'}}>{p.team_short}</td>
-                        <td style={{padding:'8px 12px', textAlign:'center'}}>
+              <div className="fa-players-list">
+                {fantasyPlayers.map(p => {
+                  const edits = editingPlayer[p.id] || {}
+                  const isDirty = Object.keys(edits).length > 0
+                  return (
+                    <div key={p.id} className={`fa-player-row${isDirty ? ' dirty' : ''}`}>
+                      <div className="fa-player-avatar">
+                        {(edits.image_url !== undefined ? edits.image_url : p.image_url)
+                          ? <img src={edits.image_url !== undefined ? edits.image_url : p.image_url} alt={p.name} className="fa-player-img" onError={e => { e.target.style.display='none' }} />
+                          : <div className="fa-player-initials">{p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+                        }
+                      </div>
+                      <div className="fa-player-info">
+                        <div className="fa-player-name">{p.name}</div>
+                        <div className="fa-player-meta">
+                          <span className="fa-player-team">{p.team_short}</span>
                           <select
-                            value={(editingPlayer[p.id]||{}).role || p.role}
-                            onChange={e => setEditingPlayer({...editingPlayer, [p.id]: {...(editingPlayer[p.id]||{}), role: e.target.value}})}
-                            style={{background:'#222', color:'#fff', border:'1px solid #333', borderRadius:4, padding:'2px 4px'}}
+                            className="fa-role-select"
+                            value={edits.role !== undefined ? edits.role : p.role}
+                            onChange={e => setEditingPlayer({...editingPlayer, [p.id]: {...edits, role: e.target.value}})}
                           >
                             {['WK','BAT','AR','BOWL'].map(r => <option key={r} value={r}>{r}</option>)}
                           </select>
-                        </td>
-                        <td style={{padding:'8px 12px', textAlign:'center'}}>
-                          <input
-                            type="number" step="0.5" min="7" max="13"
-                            value={(editingPlayer[p.id]||{}).credits !== undefined ? editingPlayer[p.id].credits : p.credits}
-                            onChange={e => setEditingPlayer({...editingPlayer, [p.id]: {...(editingPlayer[p.id]||{}), credits: e.target.value}})}
-                            style={{width:60, background:'#222', color:'#fff', border:'1px solid #333', borderRadius:4, padding:'2px 6px', textAlign:'center'}}
-                          />
-                        </td>
-                        <td style={{padding:'8px 12px', textAlign:'center'}}>
-                          {editingPlayer[p.id] && (
-                            <button
-                              className="edit-btn-small"
-                              onClick={async () => {
-                                try {
-                                  await FantasyService.adminUpdatePlayer(p.id, {
-                                    credits: parseFloat((editingPlayer[p.id]||{}).credits || p.credits),
-                                    role: (editingPlayer[p.id]||{}).role || p.role
-                                  })
-                                  const newEdit = {...editingPlayer}
-                                  delete newEdit[p.id]
-                                  setEditingPlayer(newEdit)
-                                  loadData()
-                                } catch(err) { alert(err.message) }
-                              }}
-                            >Save</button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                        <input
+                          className="fa-img-input"
+                          placeholder="Photo URL"
+                          value={edits.image_url !== undefined ? edits.image_url : (p.image_url || '')}
+                          onChange={e => setEditingPlayer({...editingPlayer, [p.id]: {...edits, image_url: e.target.value}})}
+                        />
+                      </div>
+                      <div className="fa-player-credits">
+                        <input
+                          type="number" step="0.5" min="5" max="15"
+                          className="fa-credits-input"
+                          value={edits.credits !== undefined ? edits.credits : p.credits}
+                          onChange={e => setEditingPlayer({...editingPlayer, [p.id]: {...edits, credits: e.target.value}})}
+                        />
+                        <span className="fa-credits-label">cr</span>
+                      </div>
+                      {isDirty && (
+                        <button
+                          className="fa-save-btn"
+                          onClick={async () => {
+                            try {
+                              const payload = {}
+                              if (edits.credits !== undefined) payload.credits = parseFloat(edits.credits)
+                              if (edits.role !== undefined) payload.role = edits.role
+                              if (edits.image_url !== undefined) payload.image_url = edits.image_url
+                              await FantasyService.adminUpdatePlayer(p.id, payload)
+                              const next = {...editingPlayer}
+                              delete next[p.id]
+                              setEditingPlayer(next)
+                              setFantasyPlayers(prev => prev.map(x => x.id === p.id ? {...x, ...payload} : x))
+                            } catch(e) { alert(e.message) }
+                          }}
+                        >Save</button>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

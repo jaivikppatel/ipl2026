@@ -52,6 +52,7 @@ class PlayerCreditUpdate(BaseModel):
     credits: Optional[float] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
+    image_url: Optional[str] = None
 
 
 class SeriesCreate(BaseModel):
@@ -278,26 +279,37 @@ async def get_match_players(
     try:
         # Get match info
         cursor.execute(
-            'SELECT team1_id, team2_id, squad_fetched, playing_xi_announced FROM fantasy_match_schedule WHERE id = %s',
+            'SELECT team1_id, team2_id, squad_fetched, playing_xi_announced, series_id FROM fantasy_match_schedule WHERE id = %s',
             (match_id,)
         )
         match = cursor.fetchone()
         if not match:
             raise HTTPException(status_code=404, detail='Match not found')
 
+        series_id = match.get('series_id')
+
         if match['squad_fetched']:
             # Return announced squad
             cursor.execute(
                 '''SELECT
-                     p.id, p.name, p.role, p.credits, p.batting_style, p.bowling_style, p.country, p.image_url,
+                     p.id, p.name, p.role, p.credits, p.batting_style, p.bowling_style, p.country,
+                     p.image_url, p.image_data,
                      t.short_name AS team_short, t.full_name AS team_name, t.primary_color,
-                     fqs.is_playing_xi
+                     fqs.is_playing_xi,
+                     COALESCE(spts.series_points, 0) AS series_points
                    FROM fantasy_match_squads fqs
                    JOIN fantasy_ipl_players p ON fqs.player_id = p.id
                    JOIN fantasy_ipl_teams t ON p.team_id = t.id
+                   LEFT JOIN (
+                     SELECT fpms.player_id, SUM(fpms.fantasy_points) AS series_points
+                     FROM fantasy_player_match_stats fpms
+                     JOIN fantasy_match_schedule fms ON fpms.match_id = fms.id
+                     WHERE fms.series_id = %s
+                     GROUP BY fpms.player_id
+                   ) spts ON spts.player_id = p.id
                    WHERE fqs.match_id = %s AND fqs.is_announced = 1 AND p.is_active = 1
                    ORDER BY t.short_name, p.role, p.name''',
-                (match_id,)
+                (series_id, match_id)
             )
         else:
             # Return all active players from both teams
@@ -309,14 +321,23 @@ async def get_match_players(
             placeholders = ','.join(['%s'] * len(team_ids))
             cursor.execute(
                 f'''SELECT
-                     p.id, p.name, p.role, p.credits, p.batting_style, p.bowling_style, p.country, p.image_url,
+                     p.id, p.name, p.role, p.credits, p.batting_style, p.bowling_style, p.country,
+                     p.image_url, p.image_data,
                      t.short_name AS team_short, t.full_name AS team_name, t.primary_color,
-                     0 AS is_playing_xi
+                     0 AS is_playing_xi,
+                     COALESCE(spts.series_points, 0) AS series_points
                    FROM fantasy_ipl_players p
                    JOIN fantasy_ipl_teams t ON p.team_id = t.id
+                   LEFT JOIN (
+                     SELECT fpms.player_id, SUM(fpms.fantasy_points) AS series_points
+                     FROM fantasy_player_match_stats fpms
+                     JOIN fantasy_match_schedule fms ON fpms.match_id = fms.id
+                     WHERE fms.series_id = %s
+                     GROUP BY fpms.player_id
+                   ) spts ON spts.player_id = p.id
                    WHERE p.team_id IN ({placeholders}) AND p.is_active = 1
                    ORDER BY t.short_name, p.role, p.name''',
-                team_ids
+                [series_id] + team_ids
             )
 
         rows = cursor.fetchall()
@@ -330,10 +351,12 @@ async def get_match_players(
                 'bowling_style': r['bowling_style'],
                 'country': r['country'],
                 'image_url': r['image_url'],
+                'image_data': r['image_data'],
                 'team_short': r['team_short'],
                 'team_name': r['team_name'],
                 'team_color': r['primary_color'],
                 'is_playing_xi': bool(r.get('is_playing_xi', False)),
+                'series_points': float(r['series_points'] or 0),
             }
             for r in rows
         ]
@@ -373,7 +396,7 @@ async def get_my_team(
         cursor.execute(
             '''SELECT
                  futp.player_id, futp.is_captain, futp.is_vice_captain,
-                 p.name, p.role, p.credits, p.image_url,
+                 p.name, p.role, p.credits, p.image_url, p.image_data,
                  t.short_name AS team_short, t.primary_color
                FROM fantasy_user_team_players futp
                JOIN fantasy_ipl_players p ON futp.player_id = p.id
@@ -415,6 +438,7 @@ async def get_my_team(
                         'role': p['role'],
                         'credits': float(p['credits']),
                         'image_url': p['image_url'],
+                        'image_data': p['image_data'],
                         'team_short': p['team_short'],
                         'team_color': p['primary_color'],
                         'is_captain': bool(p['is_captain']),
@@ -657,7 +681,7 @@ async def get_user_team(
         cursor.execute(
             '''SELECT
                  futp.player_id, futp.is_captain, futp.is_vice_captain,
-                 p.name, p.role, p.credits, p.image_url,
+                 p.name, p.role, p.credits, p.image_url, p.image_data,
                  t.short_name AS team_short, t.primary_color
                FROM fantasy_user_team_players futp
                JOIN fantasy_ipl_players p ON futp.player_id = p.id
@@ -698,6 +722,7 @@ async def get_user_team(
                     'role': p['role'],
                     'credits': float(p['credits']),
                     'image_url': p['image_url'],
+                    'image_data': p['image_data'],
                     'team_short': p['team_short'],
                     'team_color': p['primary_color'],
                     'is_captain': bool(p['is_captain']),
@@ -759,7 +784,7 @@ async def get_match_points_breakdown(
         cursor.execute(
             '''SELECT
                  futp.player_id, futp.is_captain, futp.is_vice_captain,
-                 p.name, p.role, p.image_url,
+                 p.name, p.role, p.image_url, p.image_data,
                  t.short_name AS team_short,
                  COALESCE(fpms.runs_scored, 0) AS runs_scored,
                  COALESCE(fpms.balls_faced, 0) AS balls_faced,
@@ -787,6 +812,7 @@ async def get_match_points_breakdown(
                 'name': r['name'],
                 'role': r['role'],
                 'image_url': r['image_url'],
+                'image_data': r['image_data'],
                 'team_short': r['team_short'],
                 'is_captain': bool(r['is_captain']),
                 'is_vice_captain': bool(r['is_vice_captain']),
@@ -830,7 +856,7 @@ async def get_match_player_scores(match_id: int):
                  fpms.player_id,
                  p.name,
                  p.role,
-                 p.image_url,
+                 p.image_url, p.image_data,
                  t.short_name AS team_short,
                  t.primary_color AS team_color,
                  COALESCE(fpms.runs_scored, 0) AS runs_scored,
@@ -844,7 +870,7 @@ async def get_match_player_scores(match_id: int):
                FROM fantasy_player_match_stats fpms
                JOIN fantasy_ipl_players p ON fpms.player_id = p.id
                JOIN fantasy_ipl_teams t ON p.team_id = t.id
-               WHERE fpms.match_id = %s AND fpms.fantasy_points > 0
+               WHERE fpms.match_id = %s AND fpms.fantasy_points IS NOT NULL
                ORDER BY fpms.fantasy_points DESC''',
             (match_id,)
         )
@@ -855,6 +881,7 @@ async def get_match_player_scores(match_id: int):
                 'name': r['name'],
                 'role': r['role'],
                 'image_url': r['image_url'],
+                'image_data': r['image_data'],
                 'team_short': r['team_short'],
                 'team_color': r['team_color'],
                 'stats': {
@@ -1393,11 +1420,37 @@ async def admin_update_player(
         if update.is_active is not None:
             parts.append('is_active = %s')
             params.append(int(update.is_active))
+        new_image_url = None
+        if update.image_url is not None:
+            new_image_url = update.image_url.strip() or None
+            parts.append('image_url = %s')
+            params.append(new_image_url)
         if not parts:
             return {'message': 'No changes'}
         params.append(player_id)
         cursor.execute(f'UPDATE fantasy_ipl_players SET {", ".join(parts)} WHERE id = %s', params)
         conn.commit()
+
+        # Auto-fetch and store image blob when URL is updated
+        if new_image_url:
+            try:
+                import base64, requests as _req
+                resp = _req.get(new_image_url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+                resp.raise_for_status()
+                ct = resp.headers.get('Content-Type', '')
+                mime = ct.split(';')[0].strip().lower()
+                if not mime.startswith('image/'):
+                    mime = 'image/jpeg'
+                b64 = base64.b64encode(resp.content).decode('ascii')
+                data_uri = f'data:{mime};base64,{b64}'
+                cursor.execute(
+                    'UPDATE fantasy_ipl_players SET image_data = %s, image_data_url = %s WHERE id = %s',
+                    (data_uri, new_image_url, player_id)
+                )
+                conn.commit()
+            except Exception:
+                pass  # Don't fail the update if image fetch fails
+
         return {'message': 'Player updated'}
     finally:
         cursor.close()

@@ -787,3 +787,287 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* ═══════════════════════════════════════════════════════
+   Fantasy Admin Section — Clean Redesign
+   ═══════════════════════════════════════════════════════ */
+
+.fa-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.fa-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.78rem;
+  color: #888;
+}
+
+.fa-action-btn {
+  background: rgba(236,0,140,0.12);
+  border: 1px solid rgba(236,0,140,0.3);
+  color: #ec008c;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.fa-action-btn:hover { background: rgba(236,0,140,0.22); }
+
+/* API Usage Card */
+.fa-api-card {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+.fa-api-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.fa-api-label { font-size: 0.82rem; color: #666; }
+.fa-api-value { font-size: 1.1rem; font-weight: 800; color: #fff; }
+.fa-api-max { font-size: 0.75rem; font-weight: 400; color: #555; }
+.fa-api-bar-track {
+  background: #1e1e1e;
+  border-radius: 6px;
+  height: 6px;
+  overflow: hidden;
+}
+.fa-api-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #ec008c, #ff6b00);
+  transition: width 0.4s ease;
+}
+.fa-api-last { font-size: 0.72rem; color: #444; margin-top: 6px; }
+
+/* Matches grid */
+.fa-matches-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.fa-match-card {
+  background: #141414;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.fa-match-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.fa-match-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  flex: 1;
+}
+.fa-status-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.fa-status-pill.live {
+  background: rgba(255,68,68,0.15);
+  color: #ff4444;
+  border: 1px solid rgba(255,68,68,0.3);
+}
+.fa-status-pill.completed {
+  background: rgba(107,196,106,0.12);
+  color: #6bc46a;
+  border: 1px solid rgba(107,196,106,0.25);
+}
+.fa-status-pill.upcoming {
+  background: rgba(255,255,255,0.06);
+  color: #888;
+  border: 1px solid #2a2a2a;
+}
+.fa-match-badges { display: flex; gap: 6px; margin-bottom: 8px; }
+.fa-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.fa-badge.ok {
+  background: rgba(107,196,106,0.1);
+  color: #6bc46a;
+  border: 1px solid rgba(107,196,106,0.2);
+}
+.fa-badge.warn {
+  background: rgba(255,165,0,0.1);
+  color: #ffa500;
+  border: 1px solid rgba(255,165,0,0.2);
+}
+.fa-match-actions { display: flex; gap: 8px; }
+.fa-sm-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid #2a2a2a;
+  color: #aaa;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.fa-sm-btn:hover {
+  background: rgba(236,0,140,0.1);
+  border-color: rgba(236,0,140,0.25);
+  color: #ec008c;
+}
+
+/* Players list */
+.fa-players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fa-empty-msg {
+  color: #444;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 24px 0;
+}
+.fa-player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #141414;
+  border: 1px solid #1e1e1e;
+  border-radius: 12px;
+  padding: 10px 12px;
+  transition: border-color 0.2s;
+}
+.fa-player-row.dirty {
+  border-color: rgba(236,0,140,0.3);
+}
+.fa-player-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fa-player-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fa-player-initials {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #555;
+}
+.fa-player-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fa-player-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fa-player-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fa-player-team {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #888;
+  background: #222;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+.fa-role-select {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  color: #ccc;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fa-img-input {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: #aaa;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+.fa-img-input:focus {
+  outline: none;
+  border-color: rgba(236,0,140,0.4);
+}
+.fa-img-input::placeholder { color: #3a3a3a; }
+.fa-player-credits {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.fa-credits-input {
+  width: 52px;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: center;
+}
+.fa-credits-input:focus { outline: none; border-color: rgba(236,0,140,0.4); }
+.fa-credits-label { font-size: 0.65rem; color: #555; }
+.fa-save-btn {
+  background: linear-gradient(135deg, #ec008c, #ff6b00);
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+.fa-save-btn:hover { opacity: 0.85; }

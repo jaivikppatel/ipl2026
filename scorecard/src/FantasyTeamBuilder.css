@@ -227,6 +227,39 @@
 }
 
 /* PLAYER LIST */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #141414;
+  border-bottom: 1px solid #222;
+}
+
+.sort-label {
+  font-size: 0.72rem;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.sort-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #333;
+  background: none;
+  color: #666;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sort-btn.active {
+  border-color: #ec008c;
+  color: #ec008c;
+  background: rgba(236, 0, 140, 0.08);
+}
+
 .player-list {
   flex: 1;
   overflow-y: auto;
@@ -337,6 +370,12 @@
   font-size: 0.88rem;
   font-weight: 700;
   color: #6bc46a;
+}
+
+.player-series-pts {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #aaa;
 }
 
 .selected-tick {

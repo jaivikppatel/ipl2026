@@ -307,6 +307,7 @@ function FantasyLeaderboard() {
                       >
                         <div className="mp-left">
                           <PlayerAvatar
+                            imageData={p.image_data}
                             imageUrl={p.image_url}
                             name={p.name}
                             teamColor={p.team_color}
@@ -356,6 +357,7 @@ function FantasyLeaderboard() {
                     onClick={() => setSelectedPlayer({ ...p, multiplier: 1.0, total_points: p.base_points, is_captain: false, is_vice_captain: false })}
                   >
                     <PlayerAvatar
+                      imageData={p.image_data}
                       imageUrl={p.image_url}
                       name={p.name}
                       teamColor={p.team_color}
@@ -401,6 +403,7 @@ function FantasyLeaderboard() {
                     >
                       <div className="mp-left">
                         <PlayerAvatar
+                          imageData={p.image_data}
                           imageUrl={p.image_url}
                           name={p.name}
                           teamColor={p.team_color}

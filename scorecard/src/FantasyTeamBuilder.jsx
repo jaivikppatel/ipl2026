@@ -24,6 +24,7 @@ function FantasyTeamBuilder() {
   const [captain, setCaptain] = useState(null)
   const [viceCaptain, setViceCaptain] = useState(null)
   const [activeRole, setActiveRole] = useState('WK')
+  const [sortBy, setSortBy] = useState('credits') // 'credits' | 'points'
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [squadAnnounced, setSquadAnnounced] = useState(false)
@@ -167,7 +168,13 @@ function FantasyTeamBuilder() {
     }
   }
 
-  const filteredPlayers = players.filter(p => p.role === activeRole)
+  const filteredPlayers = players
+    .filter(p => p.role === activeRole)
+    .sort((a, b) =>
+      sortBy === 'points'
+        ? (b.series_points || 0) - (a.series_points || 0)
+        : b.credits - a.credits
+    )
 
   if (loading) {
     return (
@@ -255,6 +262,23 @@ function FantasyTeamBuilder() {
             })}
           </div>
 
+          {/* Sort controls */}
+          <div className="sort-bar">
+            <span className="sort-label">Sort by:</span>
+            <button
+              className={`sort-btn ${sortBy === 'credits' ? 'active' : ''}`}
+              onClick={() => setSortBy('credits')}
+            >
+              Credits
+            </button>
+            <button
+              className={`sort-btn ${sortBy === 'points' ? 'active' : ''}`}
+              onClick={() => setSortBy('points')}
+            >
+              Series Pts
+            </button>
+          </div>
+
           <div className="player-list">
             {filteredPlayers.length === 0 && (
               <div className="no-players">No {ROLE_LABELS[activeRole]} available</div>
@@ -278,6 +302,7 @@ function FantasyTeamBuilder() {
                 >
                   <div className="player-left">
                     <PlayerAvatar
+                      imageData={player.image_data}
                       imageUrl={player.image_url}
                       name={player.name}
                       teamColor={player.team_color}
@@ -296,6 +321,7 @@ function FantasyTeamBuilder() {
                   </div>
                   <div className="player-right">
                     <div className="player-credits">{player.credits} cr</div>
+                    <div className="player-series-pts">{Math.round(player.series_points || 0)} pts</div>
                     {isSelected && <div className="selected-tick">✓</div>}
                   </div>
                 </div>
@@ -336,6 +362,7 @@ function FantasyTeamBuilder() {
                   onClick={() => setCaptainVC(player.id)}
                 >
                   <PlayerAvatar
+                    imageData={player.image_data}
                     imageUrl={player.image_url}
                     name={player.name}
                     teamColor={player.team_color}
