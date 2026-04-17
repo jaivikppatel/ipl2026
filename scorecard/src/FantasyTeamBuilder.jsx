@@ -193,7 +193,11 @@ function FantasyTeamBuilder() {
       <div className="ftb-header">
         <button className="ftb-back-btn" onClick={() => navigate('/fantasy')}>←</button>
         <div className="ftb-header-info">
-          <h1>{matchInfo?.short_name || matchInfo?.match_name || 'Create Team'}</h1>
+          <h1>{
+            (matchInfo?.team1?.short && matchInfo?.team2?.short)
+              ? `${matchInfo.team1.short} vs ${matchInfo.team2.short}`
+              : matchInfo?.short_name || matchInfo?.match_name || 'Create Team'
+          }</h1>
           {matchInfo?.match_date && (
             <span className="ftb-header-date">
               {new Date(matchInfo.match_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
