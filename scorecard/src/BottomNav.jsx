@@ -14,6 +14,7 @@ function BottomNav() {
 
   return (
     <div className="bottom-nav">
+      {/* Home tab hidden - kept for future use
       <button 
         className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}
         onClick={() => navigate('/dashboard')}
@@ -21,6 +22,7 @@ function BottomNav() {
         <span className="nav-icon">🏠</span>
         <span className="nav-label">Home</span>
       </button>
+      */}
 
       <button
         className={`nav-item ${isActive('/fantasy') ? 'active' : ''}`}

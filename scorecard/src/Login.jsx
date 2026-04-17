@@ -24,7 +24,7 @@ function Login() {
 
     try {
       await AuthService.login(email, password)
-      navigate('/dashboard')
+      navigate('/fantasy')
     } catch (err) {
       if (err.message === 'EMAIL_NOT_VERIFIED') {
         setEmailNotVerified(true)

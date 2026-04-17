@@ -7,7 +7,7 @@ import BottomNav from './BottomNav'
 import './Admin.css'
 
 function Admin() {
-  const [activeTab, setActiveTab] = useState('schedule')
+  const [activeTab, setActiveTab] = useState('fantasy')
   const [games, setGames] = useState([])
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(false)
@@ -218,15 +218,13 @@ function Admin() {
       </div>
 
       <div className="admin-tabs">
-        {['schedule', 'rankings', 'profiles', 'fantasy'].map(tab => (
+        {/* schedule, rankings, profiles tabs hidden - kept for future use */}
+        {['fantasy'].map(tab => (
           <button 
             key={tab}
             className={activeTab === tab ? 'tab active' : 'tab'}
             onClick={() => setActiveTab(tab)}
           >
-            {tab === 'schedule' && '📅 Schedule'}
-            {tab === 'rankings' && '🎯 Enter Points'}
-            {tab === 'profiles' && '🏆 Scoring Profiles'}
             {tab === 'fantasy' && '🏏 Fantasy'}
           </button>
         ))}
