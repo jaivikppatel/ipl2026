@@ -7,7 +7,7 @@ import './FantasyTeamBuilder.css'
 
 const ROLES = ['WK', 'BAT', 'AR', 'BOWL']
 const ROLE_LABELS = { WK: 'Wicket-Keepers', BAT: 'Batsmen', AR: 'All-Rounders', BOWL: 'Bowlers' }
-const ROLE_ICONS = { WK: '🧤', BAT: '🏏', AR: '⚡', BOWL: '🎾' }
+const ROLE_ICONS = { WK: '🧤', BAT: '🏏', AR: '⚡', BOWL: '🥎' }
 const TEAM_SIZE = 11
 const MAX_CREDITS = 100.0
 const MAX_FROM_ONE_TEAM = 7
@@ -79,11 +79,10 @@ function FantasyTeamBuilder() {
     teamCounts[p.team_short] = (teamCounts[p.team_short] || 0) + 1
   })
 
-  // Role counts (WK counts as BAT too)
+  // Role counts — each role counted independently
   const roleCounts = { WK: 0, BAT: 0, AR: 0, BOWL: 0 }
   selectedPlayers.forEach(p => {
     roleCounts[p.role] = (roleCounts[p.role] || 0) + 1
-    if (p.role === 'WK') roleCounts['BAT'] = (roleCounts['BAT'] || 0) + 1
   })
 
   const validationErrors = () => {

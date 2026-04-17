@@ -667,14 +667,94 @@ def fetch_live_scorecard(statpal_fixture_id: int, db_match_id: int, match_data: 
             print(f'[fantasy] fetch_live_scorecard: fixture {statpal_fixture_id} not found in livescores')
             return
 
+    import re as _re
+
     raw_status = match_data.get('status', '')
     new_status = _map_status(raw_status)
 
     home_score = (match_data.get('home') or {}).get('totalscore', '')
     away_score = (match_data.get('away') or {}).get('totalscore', '')
-    live_score_json = json.dumps({'home': home_score, 'away': away_score})
 
     result_comment = (match_data.get('comment') or {}).get('post') or None
+
+    # Build rich per-innings data for live scorecard display
+    innings_raw = match_data.get('inning') or []
+    if isinstance(innings_raw, dict):
+        innings_raw = [innings_raw]
+    innings_data = []
+    for inn in innings_raw:
+        total = inn.get('total') or {}
+        tot_str = (total.get('tot', '') or '').strip()
+        runs = 0
+        overs = ''
+        m_tot = _re.match(r'(\d+)\s*\(\s*([\d.]+)\s*\)', tot_str)
+        if m_tot:
+            runs = int(m_tot.group(1))
+            overs = m_tot.group(2)
+        else:
+            # totalscore may be plain runs only (e.g. "180") — extract just the number
+            m_plain = _re.match(r'^(\d+)', tot_str)
+            if m_plain:
+                runs = int(m_plain.group(1))
+            # Try to derive overs from the sum of balls bowled by all bowlers
+            bowls_fallback = (inn.get('bowlers') or {}).get('player') or []
+            if isinstance(bowls_fallback, dict):
+                bowls_fallback = [bowls_fallback]
+            total_balls = sum(_overs_to_balls(bw.get('o', 0)) for bw in bowls_fallback)
+            if total_balls:
+                whole, rem = divmod(total_balls, 6)
+                overs = f'{whole}.{rem}' if rem else str(whole)
+        wickets = int(total.get('wickets', 0) or 0)
+        rr = (total.get('rr', '') or '').strip()
+
+        # Currently batting players (bat == "True")
+        bats = (inn.get('batsmanstats') or {}).get('player') or []
+        if isinstance(bats, dict):
+            bats = [bats]
+        batsmen = [
+            {
+                'name': b.get('batsman', ''),
+                'runs': int(b.get('r', 0) or 0),
+                'balls': int(b.get('b', 0) or 0),
+                'sr': b.get('sr', ''),
+            }
+            for b in bats if str(b.get('bat', '')).lower() == 'true'
+        ]
+
+        # Currently bowling player (ball == "True")
+        bowls = (inn.get('bowlers') or {}).get('player') or []
+        if isinstance(bowls, dict):
+            bowls = [bowls]
+        bowler = next(
+            (
+                {
+                    'name': bw.get('bowler', ''),
+                    'overs': str(bw.get('o', '') or ''),
+                    'wickets': int(bw.get('w', 0) or 0),
+                    'runs': int(bw.get('r', 0) or 0),
+                }
+                for bw in bowls if str(bw.get('ball', '')).lower() == 'true'
+            ),
+            None,
+        )
+
+        innings_data.append({
+            'num': int(inn.get('inningnum', 0) or 0),
+            'name': inn.get('name', ''),
+            'team': 'home' if inn.get('team', '') == 'localteam' else 'away',
+            'runs': runs,
+            'wickets': wickets,
+            'overs': overs,
+            'run_rate': rr,
+            'batsmen': batsmen,
+            'bowler': bowler,
+        })
+
+    live_score_json = json.dumps({
+        'home': home_score,
+        'away': away_score,
+        'innings': innings_data,
+    })
 
     player_stats = _parse_match_player_stats(match_data)
 

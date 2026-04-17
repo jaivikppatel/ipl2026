@@ -173,6 +173,8 @@ function Fantasy() {
     const canCreateLocked = !hasTeam && !deadlinePassed && match.status === 'upcoming' && !hasAccess
     const isLive = match.status === 'live'
     const isCompleted = match.status === 'completed'
+    const activeInnings = match.live_score?.innings || []
+    const currentInn = activeInnings[activeInnings.length - 1] || null
 
     return (
       <div key={match.id} className="match-card">
@@ -220,6 +222,62 @@ function Fantasy() {
           <div className="my-team-badge">
             ✓ Team Created
             {team.leaderboard && <span className="rank-chip">Rank #{team.leaderboard.rank || '—'} · {team.leaderboard.total_points?.toFixed(1) || 0} pts</span>}
+          </div>
+        )}
+
+        {isLive && (activeInnings.length > 0 || match.live_score?.home || match.live_score?.away) && (
+          <div className="live-scorecard">
+            <div className="live-scorecard-header">📊 Live Scorecard</div>
+            <div className="live-innings-list">
+              {activeInnings.length > 0
+                ? activeInnings.map((inn, idx) => {
+                    const isCurrent = idx === activeInnings.length - 1
+                    const teamInfo = inn.team === 'home' ? match.team1 : match.team2
+                    return (
+                      <div key={idx} className={`live-inn-row${isCurrent ? ' current' : ''}`}>
+                        <span className="live-inn-short" style={{ '--tc': teamInfo?.color || '#fff' }}>
+                          {teamInfo?.short || '?'}
+                        </span>
+                        <span className="live-inn-score">{inn.runs}/{inn.wickets}</span>
+                        {inn.overs && <span className="live-inn-overs">({inn.overs} ov)</span>}
+                        {isCurrent && inn.run_rate && (
+                          <span className="live-inn-crr">CRR {inn.run_rate}</span>
+                        )}
+                      </div>
+                    )
+                  })
+                : [
+                    match.live_score?.home ? (
+                      <div key="h" className="live-inn-row current">
+                        <span className="live-inn-short" style={{ '--tc': match.team1?.color || '#fff' }}>{match.team1?.short || 'H'}</span>
+                        <span className="live-inn-score">{match.live_score.home}</span>
+                      </div>
+                    ) : null,
+                    match.live_score?.away ? (
+                      <div key="a" className="live-inn-row">
+                        <span className="live-inn-short" style={{ '--tc': match.team2?.color || '#fff' }}>{match.team2?.short || 'A'}</span>
+                        <span className="live-inn-score">{match.live_score.away}</span>
+                      </div>
+                    ) : null,
+                  ].filter(Boolean)
+              }
+            </div>
+            {currentInn?.batsmen?.length > 0 && (
+              <div className="live-players-mini">
+                {currentInn.batsmen.map((b, j) => (
+                  <div key={j} className="live-pm-row">
+                    <span className="live-pm-name">🏏 {b.name}*</span>
+                    <span className="live-pm-stat">{b.runs} ({b.balls})</span>
+                  </div>
+                ))}
+                {currentInn.bowler && (
+                  <div className="live-pm-row bowler">
+                    <span className="live-pm-name">🥎 {currentInn.bowler.name}</span>
+                    <span className="live-pm-stat">{currentInn.bowler.overs} ov · {currentInn.bowler.wickets}/{currentInn.bowler.runs}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
