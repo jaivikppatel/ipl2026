@@ -157,7 +157,8 @@ def _map_status(statpal_status: str) -> str:
         return 'completed'
     if s in ('Cancelled', 'Abandoned', 'No Result'):
         return 'abandoned'
-    if s in ('In Progress', 'Live', 'Innings Break', 'Lunch', 'Tea', 'Rain Delay', 'Delayed'):
+    if s in ('In Progress', 'Live', 'Innings Break', 'Lunch', 'Tea', 'Rain Delay', 'Delayed',
+              'Toss', 'Pre-match', 'Prematch', 'About to begin', 'First Innings', 'Second Innings'):
         return 'live'
     return 'upcoming'
 
@@ -754,14 +755,14 @@ def fetch_live_scorecard(statpal_fixture_id: int, db_match_id: int, match_data: 
 
         cursor.execute(
             '''UPDATE fantasy_match_schedule
-               SET status = %s,
+               SET status = IF(%s IN ('live', 'completed', 'abandoned'), %s, status),
                    live_score = %s,
                    venue = COALESCE(%s, venue),
                    status_note = COALESCE(%s, status_note),
                    last_synced_at = NOW(),
                    scorecard_fetched = IF(%s = 'completed', 1, scorecard_fetched)
                WHERE id = %s''',
-            (new_status, live_score_json, venue, result_comment, new_status, db_match_id)
+            (new_status, new_status, live_score_json, venue, result_comment, new_status, db_match_id)
         )
         conn.commit()
 

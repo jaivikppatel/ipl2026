@@ -208,11 +208,11 @@ function Fantasy() {
           {match.venue && <span className="venue-text">📍 {match.venue}</span>}
         </div>
 
-        {(isCompleted || isLive) && match.status_note && (
+        {isCompleted && match.status_note && (
           <div className="result-text">{match.status_note}</div>
         )}
 
-        {isLive && !match.status_note && (
+        {isLive && !match.live_score?.home && !match.live_score?.away && (
           <div className="live-status-text">🔴 Match in progress</div>
         )}
 
