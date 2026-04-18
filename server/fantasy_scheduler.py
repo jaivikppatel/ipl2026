@@ -787,6 +787,36 @@ def fetch_live_scorecard(statpal_fixture_id: int, db_match_id: int, match_data: 
                     continue
             player_db_id = pr['id']
 
+            # Merge with existing DB row so that partial live-score updates
+            # (where the API only returns the current inning) never overwrite
+            # batting stats with zeroes for players who already batted, and
+            # vice-versa for bowling stats.
+            cursor.execute(
+                '''SELECT did_bat, runs_scored, balls_faced, fours, sixes,
+                          is_dismissed, did_bowl, wickets, balls_bowled,
+                          runs_conceded, maidens
+                   FROM fantasy_player_match_stats
+                   WHERE match_id = %s AND player_id = %s''',
+                (db_match_id, player_db_id)
+            )
+            existing = cursor.fetchone()
+            if existing:
+                # Preserve batting stats when the current update has no batting
+                if not stats.get('did_bat') and existing.get('did_bat'):
+                    stats['did_bat'] = True
+                    stats['runs_scored'] = int(existing['runs_scored'])
+                    stats['balls_faced'] = int(existing['balls_faced'])
+                    stats['fours'] = int(existing['fours'])
+                    stats['sixes'] = int(existing['sixes'])
+                    stats['is_dismissed'] = bool(existing['is_dismissed'])
+                # Preserve bowling stats when the current update has no bowling
+                if not stats.get('did_bowl') and existing.get('did_bowl'):
+                    stats['did_bowl'] = True
+                    stats['wickets'] = int(existing['wickets'])
+                    stats['balls_bowled'] = int(existing['balls_bowled'])
+                    stats['runs_conceded'] = int(existing['runs_conceded'])
+                    stats['maidens'] = int(existing['maidens'])
+
             stats['is_duck'] = (
                 stats.get('runs_scored', 0) == 0 and
                 stats.get('is_dismissed', False) and
