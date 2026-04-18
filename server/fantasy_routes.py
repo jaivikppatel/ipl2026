@@ -793,6 +793,13 @@ async def get_match_points_breakdown(
                  COALESCE(fpms.wickets, 0) AS wickets,
                  COALESCE(fpms.catches, 0) AS catches,
                  COALESCE(fpms.stumpings, 0) AS stumpings,
+                 COALESCE(fpms.balls_bowled, 0) AS balls_bowled,
+                 COALESCE(fpms.runs_conceded, 0) AS runs_conceded,
+                 COALESCE(fpms.maidens, 0) AS maidens,
+                 COALESCE(fpms.run_outs_direct, 0) AS run_outs_direct,
+                 COALESCE(fpms.run_outs_indirect, 0) AS run_outs_indirect,
+                 COALESCE(fpms.is_dismissed, 0) AS is_dismissed,
+                 COALESCE(fpms.is_duck, 0) AS is_duck,
                  COALESCE(fpms.fantasy_points, 0) AS base_points
                FROM fantasy_user_team_players futp
                JOIN fantasy_ipl_players p ON futp.player_id = p.id
@@ -824,6 +831,13 @@ async def get_match_points_breakdown(
                     'wickets': r['wickets'],
                     'catches': r['catches'],
                     'stumpings': r['stumpings'],
+                    'balls_bowled': int(r['balls_bowled']),
+                    'runs_conceded': int(r['runs_conceded']),
+                    'maidens': int(r['maidens']),
+                    'run_outs_direct': int(r['run_outs_direct']),
+                    'run_outs_indirect': int(r['run_outs_indirect']),
+                    'is_dismissed': bool(r['is_dismissed']),
+                    'duck': bool(r['is_duck']),
                 },
                 'base_points': base,
                 'multiplier': multiplier,
@@ -866,6 +880,13 @@ async def get_match_player_scores(match_id: int):
                  COALESCE(fpms.wickets, 0) AS wickets,
                  COALESCE(fpms.catches, 0) AS catches,
                  COALESCE(fpms.stumpings, 0) AS stumpings,
+                 COALESCE(fpms.balls_bowled, 0) AS balls_bowled,
+                 COALESCE(fpms.runs_conceded, 0) AS runs_conceded,
+                 COALESCE(fpms.maidens, 0) AS maidens,
+                 COALESCE(fpms.run_outs_direct, 0) AS run_outs_direct,
+                 COALESCE(fpms.run_outs_indirect, 0) AS run_outs_indirect,
+                 COALESCE(fpms.is_dismissed, 0) AS is_dismissed,
+                 COALESCE(fpms.is_duck, 0) AS is_duck,
                  COALESCE(fpms.fantasy_points, 0) AS base_points
                FROM fantasy_player_match_stats fpms
                JOIN fantasy_ipl_players p ON fpms.player_id = p.id
@@ -892,6 +913,13 @@ async def get_match_player_scores(match_id: int):
                     'wickets': int(r['wickets']),
                     'catches': int(r['catches']),
                     'stumpings': int(r['stumpings']),
+                    'balls_bowled': int(r['balls_bowled']),
+                    'runs_conceded': int(r['runs_conceded']),
+                    'maidens': int(r['maidens']),
+                    'run_outs_direct': int(r['run_outs_direct']),
+                    'run_outs_indirect': int(r['run_outs_indirect']),
+                    'is_dismissed': bool(r['is_dismissed']),
+                    'duck': bool(r['is_duck']),
                 },
                 'base_points': float(r['base_points']),
             })
