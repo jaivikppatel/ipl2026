@@ -24,12 +24,12 @@ function getPointBreakdown(stats, isCapt, isVc) {
   const fours = stats.fours ?? 0
   const sixes = stats.sixes ?? 0
 
-  if (runs > 0) lines.push({ label: `${runs} run${runs !== 1 ? 's' : ''}`, points: runs * 0.5 })
+  if (runs > 0) lines.push({ label: `${runs} run${runs !== 1 ? 's' : ''}`, points: runs * 1 })
   if (fours > 0) lines.push({ label: `${fours} four${fours !== 1 ? 's' : ''} (bonus)`, points: fours * 1 })
-  if (sixes > 0) lines.push({ label: `${sixes} six${sixes !== 1 ? 'es' : ''} (bonus)`, points: sixes * 2 })
+  if (sixes > 0) lines.push({ label: `${sixes} six${sixes !== 1 ? 'es' : ''} (bonus)`, points: sixes * 3 })
 
-  if (runs >= 100) lines.push({ label: '100+ runs milestone', points: 16 })
-  else if (runs >= 50) lines.push({ label: '50+ runs milestone', points: 8 })
+  if (runs >= 100) lines.push({ label: '100+ runs milestone', points: 20 })
+  else if (runs >= 50) lines.push({ label: '50+ runs milestone', points: 10 })
   else if (runs >= 30) lines.push({ label: '30+ runs milestone', points: 4 })
 
   // Duck penalty: we detect from stats — runs=0 and dismissed (stats.is_dismissed or stats.duck)
